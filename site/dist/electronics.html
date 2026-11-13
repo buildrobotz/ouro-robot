@@ -1,0 +1,1707 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Electronics · Ouro robot</title>
+<meta name="description" content="One ESP32, eight servos, two IMUs, a current sensor and a 2S battery. Schematic, wiring map, power board and a safe bring-up, step by step.">
+<link rel="icon" href="data:,"><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css"></head>
+<body>
+<div class="crumb"><div class="wrap"><a href="https://buildrobotz.com/">BuildRobotz</a><span aria-hidden="true">/</span><a href="https://buildrobotz.com/robots/">Robots</a><span aria-hidden="true">/</span><span>Ouro</span></div></div>
+<header class="top"><div class="wrap"><a class="brand" href="index.html">Ouro<span>.</span></a><nav aria-label="Project pages"><a href="index.html">Overview</a><a href="build.html">Build plan</a><a href="parts.html">Parts</a><a href="mechanical.html">Mechanical</a><a href="electronics.html" aria-current="page">Electronics</a><a href="software.html">Software</a><a href="learning.html">Simulation and RL</a><a href="course.html">Learning path</a><a href="risks.html">Limits</a></nav></div></header>
+<div class="wrap"><main>
+<header><div class="eyebrow">BuildRobotz project · Electronics</div><h1>Circuit and wiring</h1><p class="lede">One ESP32, eight servos, two IMUs, a current sensor and a 2S battery. Schematic, wiring map, power board and a safe bring-up, step by step.</p></header>
+<details class="toc"><summary>On this page</summary><ol><li><a href="#what-you-are-building">What you are building</a></li><li><a href="#parts-on-this-page">Parts on this page</a></li><li><a href="#battery-safety-and-charging">Battery safety and charging</a></li><li><a href="#build-the-power-board">Build the power board</a></li><li><a href="#wire-the-strap">Wire the strap</a></li><li><a href="#set-up-the-firmware-toolchain">Set up the firmware toolchain</a></li><li><a href="#bring-up-step-by-step">Bring-up, step by step</a></li><li><a href="#troubleshooting">Troubleshooting</a></li><li><a href="#reference">Reference</a></li></ol></details><figure class="fig"><div class="svgwrap"><a href="assets/schematic.svg"><img src="assets/schematic.svg" alt="Schematic"></a></div><figcaption><b>SCHEMATIC</b> · open the image for full size</figcaption></figure><figure class="fig"><div class="svgwrap"><a href="assets/wiring.svg"><img src="assets/wiring.svg" alt="Wiring map along the strap"></a></div><figcaption><b>WIRING MAP ALONG THE STRAP</b> · open the image for full size</figcaption></figure><figure class="fig"><div class="svgwrap"><a href="assets/perfboard.svg"><img src="assets/perfboard.svg" alt="Power board layout"></a></div><figcaption><b>POWER BOARD LAYOUT</b> · open the image for full size</figcaption></figure><section class="prose"><p>This page takes you from a bag of parts to a robot that talks to your computer. You get the whole circuit in one picture, a hole-by-hole build of the one board you solder, where every wire runs along the strap, and a bring-up sequence with the meter reading you should see at each step. The reference tables (pin map, power budget, firmware behaviour, packet formats, netlist) sit at the end for when you need them.</p>
+<p>The circuit is new and has few builds behind it, so treat the meter readings in the bring-up as gates: do not move to the next step until you get the reading the table gives.</p>
+<hr />
+<h2 id="what-you-are-building">What you are building</h2>
+<p>Drawings: <a href="assets/schematic.svg"><code>schematic.svg</code></a>, <a href="assets/wiring.svg"><code>wiring.svg</code></a> (where every cable runs along the strap), <a href="assets/perfboard.svg"><code>perfboard.svg</code></a> (the power board, hole by hole). The netlist, pin map and wire list in machine-readable form: <a href="assets/electronics.json"><code>electronics.json</code></a>. All four come from one model, which checks that every perfboard net is connected and nothing is shorted, that every schematic net appears at both ends, and that no labels overlap.</p>
+<h3 id="how-it-works">How it works</h3>
+<p>A two-cell LiPo (7.4 V nominal, 8.4 V full) stands on its long edge on link s3. Its current goes through an XT30 plug and a resettable fuse (both lying beside the pack at −y), along a red and black 22 AWG pair down the −y edge of s4 and across joints 4 and 5, to the power board on link s5.</p>
+<p>On the power board the battery voltage feeds two identical 5 V buck converters. <strong>Buck A</strong> makes the servo rail. Its output passes through the INA219's current-sense resistor (the module's 0.1 Ω plus an added 0.1 Ω in parallel), then to the "+" row of an 8 × 3 servo header. <strong>Buck B</strong> makes 5 V only for the ESP32. The ESP32 board's own regulator turns that into 3.3 V for itself, both IMUs and the INA219's logic. There are two bucks because eight servos starting together pull the servo rail down hard, and a shared rail would reset the radio at exactly the moment the robot needs it.</p>
+<p>A 100k/33k divider scales the battery (up to 8.4 V) to under 2.1 V for the ESP32's ADC on GPIO34.</p>
+<p>The ESP32 on link s4 drives eight servo signal wires (one LEDC hardware PWM channel each, 50 Hz) to the header. It talks I2C at 400 kHz to three chips on one bus: the mid IMU next to it (address 0x68), the INA219 on the power board (0x40), and the head IMU on link s8 (0x69, because its AD0 pin is tied high). The bus is about 330 mm long and crosses four joints.</p>
+<p>The latch sensor is two steel screws in the head. One goes to GPIO27 (pulled up inside the ESP32), the other to ground. When the head bites the tail, both screws drop onto a bare wire laid across the tail's notches, GPIO27 reads low, and the firmware reports <code>latch = 1</code> after 15 ms of steady contact.</p>
+<p>Every 5 ms the firmware moves each servo pulse a little toward the last command (at most 32 µs per step, which is 10 rad/s, the fastest servo the simulator trains on). Every 10 ms it reads the sensors and broadcasts a 38-byte packet over ESP-NOW. A second ESP32, the dongle, sits on the computer's USB: it copies those packets to serial and copies serial command frames to ESP-NOW. Python on the computer does everything else (see <a href="software.html">Software</a>).</p>
+<p>The robot goes limp (no servo pulses) when any of these happens: no valid command for 300 ms, a command with the enable bit cleared, or the pack sitting under 6.6 V for 2 s. The low-battery state latches. 30 s later the ESP32 puts the sensors and itself to sleep, to cut the drain on a pack that has no protection circuit.</p>
+<h3 id="why-the-circuit-looks-like-this">Why the circuit looks like this</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>XT30 battery plug</strong>, not PH2.0</td>
+<td>JST-PH is rated about 2 A per contact. The rolling wheel draws about 1.8 A from the pack continuously (about 2.2 A with the final policy) and about 5 A in a stall. A PH2.0 plug would run at its limit all the time and arc or melt in stalls. XT30 is rated 15 A.</td>
+</tr>
+<tr>
+<td><strong>3 A polyfuse (PTC) F1</strong> at the battery end of the red lead</td>
+<td>The 150 mm lead flexes across two joints. A chafed lead on a 30C pack is a fire.</td>
+</tr>
+<tr>
+<td><strong>220 µF low-ESR</strong> servo-rail capacitor, no bigger</td>
+<td>A bench test of the Mini560 5 V module found it latches off at start-up into more than about 440 µF, and is happy up to about 220 µF. A larger capacitor can leave the servo rail dead at plug-in until you replug.</td>
+</tr>
+<tr>
+<td><strong>Second 0.1 Ω shunt (R5)</strong> across the INA219 shunt, range 6.4 A</td>
+<td>The servo rail averages 2.3 A rolling and reaches about 5.6 A in a stall. A single 0.1 Ω shunt saturates at 3.2 A in normal rolling and would dissipate 3.1 W in a stall. With 0.05 Ω it is 1.6 W split over two resistors at stall, and a 0.12 V drop at 2.3 A. The policy still sees what it saw in training: <code>run_policy.py</code> clips at 3.2 A and divides by 3.0, as in <code>sim/ouro_env.py</code>.</td>
+</tr>
+<tr>
+<td><strong>Joint 2 servo on GPIO26</strong></td>
+<td>GPIO14 is a JTAG pin that is not quiet during reset, so a servo on it could twitch at every power-up. GPIO26 is quiet and exists on 30- and 38-pin DevKits.</td>
+</tr>
+<tr>
+<td><strong>100 nF C3</strong> across the divider's lower resistor</td>
+<td>The divider is 25 kΩ source impedance on a wire next to servo PWM.</td>
+</tr>
+<tr>
+<td><strong>Two separate bucks</strong></td>
+<td>See <a href="#does-the-esp32-need-its-own-buck-or-would-an-lc-filter-do">Does the ESP32 need its own buck</a> in the reference.</td>
+</tr>
+<tr>
+<td><strong>5.0 V servo rail</strong>, not 6.0 V</td>
+<td>See <a href="#servo-voltage-50-v-not-60-v">Servo voltage</a> in the reference.</td>
+</tr>
+<tr>
+<td><strong>Servo extensions on servos 1–3</strong> (20 cm for servo 1, 15 cm for servos 2 and 3)</td>
+<td>The routed lead lengths from <code>cad/check_fit.py</code> are 387, 324 and 261 mm for the servos in s0, s1 and s2, against a 240 mm MG90S lead. Servo 1 is 147 mm short, which would leave only 3 mm spare on a 15 cm extension, so it gets a 20 cm one.</td>
+</tr>
+<tr>
+<td><strong>Power board 66 × 20.5 mm</strong> (26 × 8 holes), on 1 mm foam, the two bucks stacked</td>
+<td>The mechanical sweep allows at most 20.5 mm along the body on s5 (x 19.0–39.5) before j5 or j6 contact.</td>
+</tr>
+<tr>
+<td><strong>ESP32 header pins cut flush, harness soldered to the pin stubs</strong>, mid IMU on the module can</td>
+<td>Dupont plugs and housings are too tall for the curled strap.</td>
+</tr>
+<tr>
+<td><strong>Battery stood on its long edge on s3</strong>, XT30 and fuse taped on top of it</td>
+<td>A flat pack and the ESP32 cannot both fit when j4 is at +90°. On the s3 front block the ESP32 would hit the XT30 and fuse from j4 = 75°.</td>
+</tr>
+</tbody>
+</table></div>
+<p>The protection and wiring parts in this list add about $2.75 per robot, inside a $5 allowance. The architecture is simple on purpose: the ESP32 on the robot only relays, ESP-NOW goes to a dongle, the actuators are hobby servos, and power is two bucks.</p>
+<hr />
+<h2 id="parts-on-this-page">Parts on this page</h2>
+<p>Per robot. Mechanical parts and sources are on the <a href="parts.html">Parts</a> page.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Ref</th>
+<th>Part</th>
+<th>Qty</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Ref">U5, dongle</td>
+<td data-label="Part">ESP32 DevKit V1, <strong>ESP32-WROOM-32</strong> (or -32E/-32UE), <strong>30-pin</strong></td>
+<td data-label="Qty">2</td>
+<td data-label="Notes">The robot one must be the 30-pin board (the s4 mount is drawn for it). <strong>Not WROVER</strong> (GPIO16/17 are taken by PSRAM there). Not C3/S2/S3. The dongle can be any WROOM-32 DevKit.</td>
+</tr>
+<tr>
+<td data-label="Ref">U1, U3</td>
+<td data-label="Part">Mini560 buck, <strong>fixed 5 V</strong> marking, 5 A, <strong>≤ 29 × 18 mm</strong></td>
+<td data-label="Qty">2</td>
+<td data-label="Notes">Check the "5V" marking: Mini560 also comes in 3.3, 9 and 12 V. Listings give 29 × 18 × 5.4 mm; the CAD assumes 20 × 14. The board is laid out for the larger size. Order one spare per three robots; they latch off when over-stressed and cheap batches vary.</td>
+</tr>
+<tr>
+<td data-label="Ref">U2</td>
+<td data-label="Part">INA219 breakout, 0.1 Ω shunt ("R100"), <strong>≤ 20.5 × 22.9 mm</strong></td>
+<td data-label="Qty">1</td>
+<td data-label="Notes">Adafruit #904 is 20.3 × 22.9 and fits beside 29 mm bucks. A 25.6 × 20.5 generic GY-219 fits only if the Mini560 is at most 26 mm long.</td>
+</tr>
+<tr>
+<td data-label="Ref">U4, U6</td>
+<td data-label="Part">GY-521 MPU-6050</td>
+<td data-label="Qty">2</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Ref">R5</td>
+<td data-label="Part">0.1 Ω 1 W 1 % axial</td>
+<td data-label="Qty">1</td>
+<td data-label="Notes">Parallel shunt</td>
+</tr>
+<tr>
+<td data-label="Ref">F1</td>
+<td data-label="Part">PTC fuse, radial, 3.0 A hold / 6.0 A trip, ≥16 V, Imax ≥40 A (e.g. Littelfuse RUEF300)</td>
+<td data-label="Qty">1</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Ref">J0</td>
+<td data-label="Part">XT30 connector pair</td>
+<td data-label="Qty">3 male + 2 female per robot (a 5-pair pack covers it)</td>
+<td data-label="Notes">Female on each battery, male on the robot, one male for a charge adapter if your charger needs it (see <a href="#battery-safety-and-charging">Battery safety</a>). <strong>Do not run on PH2.0.</strong> A JST-RCY (BEC) plug, rated about 3 A, is a tolerable fallback. Packs that ship with XT30 save the re-termination job.</td>
+</tr>
+<tr>
+<td data-label="Ref">C2</td>
+<td data-label="Part">220 µF 10–16 V low-ESR electrolytic, 6.3 mm</td>
+<td data-label="Qty">1</td>
+<td data-label="Notes">Not 1000 µF (the buck latches off)</td>
+</tr>
+<tr>
+<td data-label="Ref">C3</td>
+<td data-label="Part">100 nF ceramic, 2.54 mm leads</td>
+<td data-label="Qty">1</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Ref">R1, R2</td>
+<td data-label="Part">100 kΩ and 33 kΩ, 1 %, ¼ W</td>
+<td data-label="Qty">1 each</td>
+<td data-label="Notes">1 % matters: 5 % resistors give ±0.4 V battery error.</td>
+</tr>
+<tr>
+<td data-label="Ref">J1</td>
+<td data-label="Part">2.54 mm male header, cut to 8 × 3</td>
+<td data-label="Qty">1</td>
+<td data-label="Notes">Straight. A right-angle header would push the plugs past the body edge.</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">Perfboard, pad-per-hole, cut to 26 × 8 holes (66 × 20.5 mm)</td>
+<td data-label="Qty">1</td>
+<td data-label="Notes">Not stripboard.</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">22 AWG silicone wire, red + black</td>
+<td data-label="Qty">0.4 m each</td>
+<td data-label="Notes">Battery lead</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">20–22 AWG bare tinned copper</td>
+<td data-label="Qty">0.3 m</td>
+<td data-label="Notes">Board power traces</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">26 AWG silicone, black/red/orange/yellow/blue/white</td>
+<td data-label="Qty">0.3 m each</td>
+<td data-label="Notes">H2 to the head</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">28 AWG silicone wire, 8 colours (brown red orange yellow green blue violet grey) + white</td>
+<td data-label="Qty">0.15 m each colour, 0.3 m orange, blue, yellow (about 1.8 m in all)</td>
+<td data-label="Notes">H1 signals, 3V3, SDA, SCL, LATCH, VSENSE and the mid-IMU wires, soldered to the cut pin stubs. No Dupont jumpers on the robot.</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">26 AWG silicone, red + black (H1 power)</td>
+<td data-label="Qty">0.1 m each</td>
+<td data-label="Notes">ESP32 5V and GND</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">24 AWG insulated (PTFE or thin-wall silicone)</td>
+<td data-label="Qty">0.05 m</td>
+<td data-label="Notes">The two bottom jumpers JB1, JB2</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">M3 ring lugs</td>
+<td data-label="Qty">2</td>
+<td data-label="Notes">Wire to the latch screws</td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">Servo extension lead</td>
+<td data-label="Qty">2 × 15 cm + 1 × 20 cm</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">Heat-shrink, 1 mm foam tape</td>
+<td data-label="Qty"></td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Ref"></td>
+<td data-label="Part">LiPo charger</td>
+<td data-label="Qty"></td>
+<td data-label="Notes">Prefer one that uses the 3-pin XH balance lead. See <a href="#battery-safety-and-charging">Battery safety</a>.</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Tools:</strong> fine-tip iron at 330–350 °C, 0.8 mm rosin-core solder, flux pen, multimeter with a continuity beeper (and a 10 A current range for bring-up).</p>
+<hr />
+<h2 id="battery-safety-and-charging">Battery safety and charging</h2>
+<p>Read this before you cut a battery lead.</p>
+<ul>
+<li>When re-terminating a pack to XT30, cut and solder <strong>one wire at a time</strong>, and heat-shrink it before you cut the other.</li>
+<li>Charge at 0.5 A (1 C) or less, in a LiPo bag or metal tray, attended, off the robot.</li>
+<li>Use a charger that connects to the <strong>3-pin XH balance lead</strong>. Some cheap "1-to-2 USB" kit chargers charge through the discharge plug without balancing. If yours does, build a 5 cm adapter (XT30 male to the charger's plug, from the spare pigtail). Then check each cell monthly with a meter on the balance lead: the cells should agree within 0.05 V.</li>
+<li>Store at 3.8 V per cell. Retire any pack that puffs, gets dented, or measures under 3.0 V per cell.</li>
+<li><strong>Unplug the battery at the end of every run.</strong> Never store the robot plugged in. Even after the low-battery cut-off puts the ESP32 to sleep, the robot draws roughly 55 mA (see <a href="#low-voltage-cut-off-and-drain-after-cut-off">Low-voltage cut-off</a>).</li>
+<li>There is no reverse-polarity protection. The keyed XT30 is the protection, so the moment that matters is when you solder the pigtail. Bring-up step 1 checks it with a meter.</li>
+</ul>
+<hr />
+<h2 id="build-the-power-board">Build the power board</h2>
+<p>Work from <a href="assets/perfboard.svg"><code>perfboard.svg</code></a>, which draws the top and the mirrored bottom.</p>
+<h3 id="board-hole-map">Board hole map</h3>
+<p>The power board is 26 columns (1–26, across the link: column 1 at link y −31.7, column 26 at +31.8) by 8 rows (A–H, along the body: row A faces s4, row H faces s6). It sits on the s5 front block at link x 19.0–39.5 on 1 mm foam.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Holes</th>
+<th>What</th>
+<th>Net</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Holes">cols 2–12, all rows</td>
+<td data-label="What">Mini560 stack: U3 (ESP32) taped to the board, U1 (servos) taped on top of U3, 18 mm side along the body. Legs: both IN+ to 1B, both GND to 1G, U3 OUT+ to 13A</td>
+<td data-label="Net"></td>
+</tr>
+<tr>
+<td data-label="Holes">cols 14–22, all rows</td>
+<td data-label="What">INA219 (U2) flat on 1 mm foam, pads facing column 13. R5 in its Vin terminal holes. C2 lies on top of it</td>
+<td data-label="Net"></td>
+</tr>
+<tr>
+<td data-label="Holes">1A / 1H</td>
+<td data-label="What">Battery + (red) / − (black)</td>
+<td data-label="Net">VBAT_F / GND</td>
+</tr>
+<tr>
+<td data-label="Holes">1C–1D</td>
+<td data-label="What">R1 standing</td>
+<td data-label="Net">VBAT_F → VSENSE</td>
+</tr>
+<tr>
+<td data-label="Holes">1D</td>
+<td data-label="What">+ H1 VSENSE (violet)</td>
+<td data-label="Net">VSENSE</td>
+</tr>
+<tr>
+<td data-label="Holes">1E–1F</td>
+<td data-label="What">R2 standing, C3 beside it in the same holes</td>
+<td data-label="Net">VSENSE → GND</td>
+</tr>
+<tr>
+<td data-label="Holes">13A</td>
+<td data-label="What">U3 OUT+ leg + H1 5V (red)</td>
+<td data-label="Net">5V_LOGIC</td>
+</tr>
+<tr>
+<td data-label="Holes">13B</td>
+<td data-label="What">LATCH tie point: H1 white + H2 white</td>
+<td data-label="Net">LATCH</td>
+</tr>
+<tr>
+<td data-label="Holes">13C / 13D</td>
+<td data-label="What">U2 GND leg / H1 GND (black)</td>
+<td data-label="Net">GND</td>
+</tr>
+<tr>
+<td data-label="Holes">13G / 13H</td>
+<td data-label="What">W2 + C2 + / C2 −</td>
+<td data-label="Net">5V_SERVO / GND</td>
+</tr>
+<tr>
+<td data-label="Holes">W1</td>
+<td data-label="What">22 AWG: U1 OUT+ pad (top buck) → U2 VIN+ pad, about 10 mm</td>
+<td data-label="Net">5V_SHUNT_IN</td>
+</tr>
+<tr>
+<td data-label="Holes">W2</td>
+<td data-label="What">22 AWG: U2 VIN− pad → 13G</td>
+<td data-label="Net">5V_SERVO</td>
+</tr>
+<tr>
+<td data-label="Holes">U2 pads VCC, SCL, SDA, GND</td>
+<td data-label="What">H1 and H2 wires soldered straight to the module pads, two per pad</td>
+<td data-label="Net">3V3, SCL, SDA, GND</td>
+</tr>
+<tr>
+<td data-label="Holes">23A–23H</td>
+<td data-label="What">H1 SIG1–SIG8</td>
+<td data-label="Net">SIG1–8</td>
+</tr>
+<tr>
+<td data-label="Holes">24 / 25 / 26, rows A–H</td>
+<td data-label="What">J1: signal / +5 V / GND; row A = servo 1 … row H = servo 8. Plug orange toward the INA, brown toward the board edge</td>
+<td data-label="Net">SIGk / 5V_SERVO / GND</td>
+</tr>
+</tbody>
+</table></div>
+<p>Bottom: bridges 1A–1C (VBAT), 1D–1E (VSENSE), 1F–1H (GND); GND row F 1–13, 13C–13F, row H 1–22, column 26; 5V_SERVO row G 13–22, column 25; SIG bridges 23x–24x. Two <strong>insulated</strong> 24 AWG jumpers on the bottom cross the signal bridges: JB1 22G → 25G (servo +) and JB2 22H → 26H (GND). On one layer a crossing is unavoidable here: the 8 signal columns sit between the power source and the header's + and − columns, and the board has no spare row.</p>
+<h3 id="steps">Steps</h3>
+<ol>
+<li><strong>Cut the board</strong> to 26 × 8 holes (66 × 20.5 mm). Mark column 1 and row A on both sides with a pen.</li>
+<li><strong>Bottom traces first.</strong> Lay bare tinned wire on the bottom pads and solder at every hole: GND row F (1–13), GND row H (1–22), 5V_SERVO row G (13–22), GND column 26 and 5V column 25 (A–H); then the bridges 1A–1C, 1D–1E, 1F–1H, 13C–13F and the eight 23x–24x. Last, the two <strong>insulated</strong> 24 AWG jumpers JB1 (22G → 25G) and JB2 (22H → 26H), lying flat across the signal bridges.
+   <em>Meter (unpowered):</em> 1A–1C beep; 1F–1H–13C beep; 13G–22G beep.</li>
+<li><strong>Header J1</strong> in columns 24–26, rows A–H. <em>Meter:</em> every column-25 pin beeps to 13G; every column-26 pin beeps to 1H; 24A–24B, 1A–1H, 13G–13H and 25A–26A <strong>must not</strong> beep.</li>
+<li><strong>R1</strong> standing in 1C–1D. <strong>R2</strong> standing in 1E–1F, with <strong>C3</strong> in the same two holes.</li>
+<li><strong>Bucks.</strong> Test each one first, on its own, from the battery pigtail: output 4.9–5.1 V with no load. If it reads 0 V and has an EN pad, see <a href="#troubleshooting">Troubleshooting</a>. Tape U3 (ESP32 buck) to columns 2–12 with 1 mm foam, 18 mm side along the board's short edge, IN pads toward column 1. Solder its legs (short 22 AWG): IN+ → 1B, GND → 1G, OUT+ → 13A. Tape U1 (servo buck) on top of U3 with 1 mm foam, same orientation; its IN+ and GND legs go into the same holes 1B and 1G. U1 sits on top so its heat goes to air, not into the ESP32's buck.</li>
+<li><strong>Battery lead.</strong> Solder the robot-side XT30 male to 150 mm of red and black 22 AWG. Splice F1 into the red lead 20 mm from the plug and heat-shrink it. Red into 1A, black into 1H.
+   <em>Meter, pack plugged in:</em> 1A to 1H reads the pack voltage, 7.0–8.4 V, <strong>positive on red</strong> (if it reads negative, unplug at once and swap the wires). 13A to 1H reads 5.0 ± 0.1 V. U1's OUT+ pad to 1H reads 5.0 ± 0.1 V. 1D to 1H reads 0.248 × the pack voltage (for example 1.98 V at 8.0 V). Unplug.</li>
+<li><strong>INA219.</strong> Leave out the screw terminal block. Solder R5 (0.1 Ω 1 W) into the two Vin terminal holes, lying flat. Stick the module flat on columns 14–22 with 1 mm foam, its header pads facing column 13. Solder its GND pad to 13C with a short leg. W1: 22 AWG from U1's OUT+ pad to the module's VIN+ pad. W2: 22 AWG from VIN− to 13G. Lay <strong>C2</strong> on its side on top of the module, on a strip of tape, + lead into 13G, − lead into 13H.
+   <em>Meter, pack plugged in:</em> 25A (servo +) to 26A reads 5.0 ± 0.1 V. If it reads 0 V but U1's OUT+ pad reads 5 V, W1 or W2 is open. If U1's output itself is 0 V, it latched at start-up: unplug for 10 s and retry.</li>
+<li><strong>Harnesses</strong>, per the <a href="#wire-list">wire list</a>: H1 into 23A–23H, 13A, 13B, 13D, 1D and onto the U2 VCC, SCL and SDA pads; H2 onto the U2 VCC, GND, SCL and SDA pads and into 13B (second wire in each). Strain-relieve the bundles to the board with a dab of hot glue on the insulation, not on the joints.</li>
+<li><strong>Mount</strong> the board on the s5 front block (link x 19.0–39.5) with <strong>1 mm foam</strong>, column 1 toward −y. Use foam pads under the bucks and the INA, so the bottom wires and jumpers press into the foam rather than rocking the board.</li>
+</ol>
+<p><strong>Heights above the link plane</strong> (board top at z 10.6): buck stack 23.4, INA with C2 on it about 21, R1/R2 about 20.5, J1 with servo plugs 27.1. Everything except the plugs sits under z 24.</p>
+<hr />
+<h2 id="wire-the-strap">Wire the strap</h2>
+<p><a href="assets/wiring.svg"><code>wiring.svg</code></a> shows every run. Lengths include a 15 mm slack loop for every joint crossed. Flat 3-wire servo leads lie flat across the hinges, which is the bend they tolerate best.</p>
+<h3 id="where-everything-sits">Where everything sits</h3>
+<p>These positions match the <a href="mechanical.html">Mechanical</a> page (mounting the electronics).</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Item</th>
+<th>Where</th>
+<th>Electrical notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Item">Battery</td>
+<td data-label="Where">s3, on its long edge, x 16.1–28.6, y −38.5…7.5, z 11–36</td>
+<td data-label="Electrical notes">Lead leaves the −y end. XT30 pair and F1 are taped on top of the standing pack. This position passes the CAD sweep; the s3 front block does not.</td>
+</tr>
+<tr>
+<td data-label="Item">ESP32 DevKit V1 (30-pin)</td>
+<td data-label="Where">s4, x 10.8–39.1, y −17.5…34, PCB underside z 13.1</td>
+<td data-label="Electrical notes">Pins cut flush under the spacers; wires soldered to the stubs. USB socket at −y stays reachable for flashing.</td>
+</tr>
+<tr>
+<td data-label="Item">Mid IMU</td>
+<td data-label="Where">s4, on the module can, top z 22.0</td>
+<td data-label="Electrical notes">4 × 28 AWG to the 3V3, GND, 21 and 22 stubs; AD0 bridged to GND.</td>
+</tr>
+<tr>
+<td data-label="Item">Power board</td>
+<td data-label="Where">s5 front block, x 19.0–39.5, y −33…+33, 1 mm foam</td>
+<td data-label="Electrical notes">26 × 8 holes. Tallest parts: plugs z 27.1, buck stack z 23.4.</td>
+</tr>
+<tr>
+<td data-label="Item">Head IMU</td>
+<td data-label="Where">s8, x 21.6–38, y ±10.6</td>
+<td data-label="Electrical notes">AD0 bridged to VCC.</td>
+</tr>
+<tr>
+<td data-label="Item">Battery pair</td>
+<td data-label="Where">over s4 along y −33…−19</td>
+<td data-label="Electrical notes">22 AWG red/black, flat.</td>
+</tr>
+<tr>
+<td data-label="Item">H2</td>
+<td data-label="Where">s6, s7 at y −20…−10</td>
+<td data-label="Electrical notes">Away from the servo-lead channel.</td>
+</tr>
+</tbody>
+</table></div>
+<p>The real board layout differs from the block stand-ins in the CAD but stays inside the same envelope. Across the board the bands are: buck stack at y −30.5…−1.5 (z ≤ 23.4), INA at y 0…23 (z ≤ 21 with C2 on it), J1 at y 24.4…33 (z 27.1). The CAD stand-ins put the bucks at y −33…−19, the INA at −18…7 and a lying cap at 10.5…20.5. The x extent (19.0–39.5) and the maximum height (27.1) are the same.</p>
+<p><strong>Clearance above the plugs.</strong> The servo wires leave the top of each plug and must turn flat into the lead channel. Bent tight at the plug, that takes about 2 mm (z ≈ 29); a relaxed bend takes 4 mm. Check that z 29 over y 24–33 clears at the j5 and j6 extremes before you close up. A right-angle header is no help here: the plugs would stick out past y 33.</p>
+<h3 id="cable-runs">Cable runs</h3>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Run</th>
+<th>Links</th>
+<th>Crosses</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Run">BAT</td>
+<td data-label="Links">s3 → s5</td>
+<td data-label="Crosses">j4, j5</td>
+<td data-label="Content">22 AWG red + black, loosely twisted, 150 mm. The pack lead leaves the pack's −y end; XT30 and F1 are taped on top of the standing pack; the pair then runs along the −y edge of s4 (y −33…−19, clear of the ESP32) to board holes 1A/1H.</td>
+</tr>
+<tr>
+<td data-label="Run">H1</td>
+<td data-label="Links">s4 → s5</td>
+<td data-label="Crosses">j5</td>
+<td data-label="Content">15 silicone wires soldered to the cut DevKit pin stubs: 8 × 28 AWG signals laid flat side by side, 26 AWG 5V and GND, 28 AWG 3V3, SDA, SCL, LATCH, VSENSE. About 90 mm.</td>
+</tr>
+<tr>
+<td data-label="Run">H2</td>
+<td data-label="Links">s5 → s8</td>
+<td data-label="Crosses">j6, j7, j8</td>
+<td data-label="Content">5 × 26 AWG silicone in the order SDA, GND, SCL, 3V3, LATCH (ground between the I2C lines), 230–250 mm. Run it at y −20…−10 on s6 and s7, away from the servo-lead channel (y 24.5–31.5).</td>
+</tr>
+<tr>
+<td data-label="Run">MID</td>
+<td data-label="Links">s4</td>
+<td data-label="Crosses">–</td>
+<td data-label="Content">4 × 28 AWG, ESP32 pin stubs → mid IMU on the module can, 30 mm</td>
+</tr>
+<tr>
+<td data-label="Run">Servo leads</td>
+<td data-label="Links">s0…s7 → s5</td>
+<td data-label="Crosses">see below</td>
+<td data-label="Content">Flat 3-wire leads, flat across the hinges.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="servo-leads">Servo leads</h3>
+<p>Servo k sits in the front cradle of segment s(k−1) and drives joint k. Lead lengths are the routed numbers from <code>cad/check_fit.py</code>, against a 240 mm MG90S lead. Measure one of your leads before ordering extensions. The same numbers are on the <a href="mechanical.html">Mechanical</a> page (mounting the electronics).</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Servo</th>
+<th>Segment</th>
+<th>Joints crossed</th>
+<th>Lead needed</th>
+<th>vs 240 mm lead</th>
+<th>Extension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Servo">M1</td>
+<td data-label="Segment">s0</td>
+<td data-label="Joints crossed">j1–j5</td>
+<td data-label="Lead needed">387 mm</td>
+<td data-label="vs 240 mm lead">147 short</td>
+<td data-label="Extension"><strong>20 cm</strong> (53 mm spare)</td>
+</tr>
+<tr>
+<td data-label="Servo">M2</td>
+<td data-label="Segment">s1</td>
+<td data-label="Joints crossed">j2–j5</td>
+<td data-label="Lead needed">324 mm</td>
+<td data-label="vs 240 mm lead">84 short</td>
+<td data-label="Extension"><strong>15 cm</strong> (66 mm spare)</td>
+</tr>
+<tr>
+<td data-label="Servo">M3</td>
+<td data-label="Segment">s2</td>
+<td data-label="Joints crossed">j3–j5</td>
+<td data-label="Lead needed">261 mm</td>
+<td data-label="vs 240 mm lead">21 short</td>
+<td data-label="Extension"><strong>15 cm</strong> (129 mm spare)</td>
+</tr>
+<tr>
+<td data-label="Servo">M4</td>
+<td data-label="Segment">s3</td>
+<td data-label="Joints crossed">j4–j5</td>
+<td data-label="Lead needed">198 mm</td>
+<td data-label="vs 240 mm lead">42 spare</td>
+<td data-label="Extension">none</td>
+</tr>
+<tr>
+<td data-label="Servo">M5</td>
+<td data-label="Segment">s4</td>
+<td data-label="Joints crossed">j5</td>
+<td data-label="Lead needed">135 mm</td>
+<td data-label="vs 240 mm lead">105 spare</td>
+<td data-label="Extension">none</td>
+</tr>
+<tr>
+<td data-label="Servo">M6</td>
+<td data-label="Segment">s5</td>
+<td data-label="Joints crossed">–</td>
+<td data-label="Lead needed">72 mm</td>
+<td data-label="vs 240 mm lead">168 spare</td>
+<td data-label="Extension">none</td>
+</tr>
+<tr>
+<td data-label="Servo">M7</td>
+<td data-label="Segment">s6</td>
+<td data-label="Joints crossed">j6</td>
+<td data-label="Lead needed">133 mm</td>
+<td data-label="vs 240 mm lead">107 spare</td>
+<td data-label="Extension">none</td>
+</tr>
+<tr>
+<td data-label="Servo">M8</td>
+<td data-label="Segment">s7</td>
+<td data-label="Joints crossed">j6–j7</td>
+<td data-label="Lead needed">196 mm</td>
+<td data-label="vs 240 mm lead">44 spare</td>
+<td data-label="Extension">none</td>
+</tr>
+</tbody>
+</table></div>
+<p>The three plug-to-plug joints (about 30 × 8 × 3 mm each) lie in the lead channel; with these lengths they land on s3 or s4. Coil spare lead in the channel. Do not cut it.</p>
+<h3 id="wire-list">Wire list</h3>
+<p>H1 signal colours follow the resistor colour code: the colour is the servo number.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>id</th>
+<th>from</th>
+<th>to</th>
+<th>net</th>
+<th>colour</th>
+<th>AWG</th>
+<th>mm</th>
+<th>crosses</th>
+<th>note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="id">B1</td>
+<td data-label="from">BT1.+ via J0 (XT30, on s3) and F1 (in heat-shrink)</td>
+<td data-label="to">board 1A</td>
+<td data-label="net">VBAT_F</td>
+<td data-label="colour">red</td>
+<td data-label="AWG">22</td>
+<td data-label="mm">150</td>
+<td data-label="crosses">j4 j5</td>
+<td data-label="note">XT30 is taped on top of the standing pack; lead runs along the -y edge of s4 (y -33..-19), clear of the ESP32</td>
+</tr>
+<tr>
+<td data-label="id">B2</td>
+<td data-label="from">BT1.- via J0 (XT30)</td>
+<td data-label="to">board 1H</td>
+<td data-label="net">GND</td>
+<td data-label="colour">black</td>
+<td data-label="AWG">22</td>
+<td data-label="mm">150</td>
+<td data-label="crosses">j4 j5</td>
+<td data-label="note">twisted with B1</td>
+</tr>
+<tr>
+<td data-label="id">H1-1</td>
+<td data-label="from">U5.GPIO13</td>
+<td data-label="to">board 23A -&gt; J1.S1</td>
+<td data-label="net">SIG1</td>
+<td data-label="colour">brown</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-2</td>
+<td data-label="from">U5.GPIO26</td>
+<td data-label="to">board 23B -&gt; J1.S2</td>
+<td data-label="net">SIG2</td>
+<td data-label="colour">red</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-3</td>
+<td data-label="from">U5.GPIO16</td>
+<td data-label="to">board 23C -&gt; J1.S3</td>
+<td data-label="net">SIG3</td>
+<td data-label="colour">orange</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-4</td>
+<td data-label="from">U5.GPIO17</td>
+<td data-label="to">board 23D -&gt; J1.S4</td>
+<td data-label="net">SIG4</td>
+<td data-label="colour">yellow</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-5</td>
+<td data-label="from">U5.GPIO18</td>
+<td data-label="to">board 23E -&gt; J1.S5</td>
+<td data-label="net">SIG5</td>
+<td data-label="colour">green</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-6</td>
+<td data-label="from">U5.GPIO19</td>
+<td data-label="to">board 23F -&gt; J1.S6</td>
+<td data-label="net">SIG6</td>
+<td data-label="colour">blue</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-7</td>
+<td data-label="from">U5.GPIO23</td>
+<td data-label="to">board 23G -&gt; J1.S7</td>
+<td data-label="net">SIG7</td>
+<td data-label="colour">violet</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-8</td>
+<td data-label="from">U5.GPIO25</td>
+<td data-label="to">board 23H -&gt; J1.S8</td>
+<td data-label="net">SIG8</td>
+<td data-label="colour">grey</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">28 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer; colour = servo number in resistor code</td>
+</tr>
+<tr>
+<td data-label="id">H1-9</td>
+<td data-label="from">U5.5V</td>
+<td data-label="to">board 13A</td>
+<td data-label="net">5V_LOGIC</td>
+<td data-label="colour">red</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">26 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer</td>
+</tr>
+<tr>
+<td data-label="id">H1-10</td>
+<td data-label="from">U5.GND</td>
+<td data-label="to">board 13D</td>
+<td data-label="net">GND</td>
+<td data-label="colour">black</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">26 AWG silicone, soldered to the cut pin stub on top of the DevKit spacer</td>
+</tr>
+<tr>
+<td data-label="id">H1-11</td>
+<td data-label="from">U5.3V3</td>
+<td data-label="to">U2 VCC pad</td>
+<td data-label="net">3V3</td>
+<td data-label="colour">orange</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer (2nd wire on the 3V3 stub)</td>
+</tr>
+<tr>
+<td data-label="id">H1-12</td>
+<td data-label="from">U5.GPIO21</td>
+<td data-label="to">U2 SDA pad</td>
+<td data-label="net">SDA</td>
+<td data-label="colour">blue</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer (2nd wire on the stub)</td>
+</tr>
+<tr>
+<td data-label="id">H1-13</td>
+<td data-label="from">U5.GPIO22</td>
+<td data-label="to">U2 SCL pad</td>
+<td data-label="net">SCL</td>
+<td data-label="colour">yellow</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer (2nd wire on the stub)</td>
+</tr>
+<tr>
+<td data-label="id">H1-14</td>
+<td data-label="from">U5.GPIO27</td>
+<td data-label="to">board 13B</td>
+<td data-label="net">LATCH</td>
+<td data-label="colour">white</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer</td>
+</tr>
+<tr>
+<td data-label="id">H1-15</td>
+<td data-label="from">U5.GPIO34</td>
+<td data-label="to">board 1D</td>
+<td data-label="net">VSENSE</td>
+<td data-label="colour">violet</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">90</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer</td>
+</tr>
+<tr>
+<td data-label="id">M-1</td>
+<td data-label="from">U5.3V3</td>
+<td data-label="to">U4.VCC</td>
+<td data-label="net">3V3</td>
+<td data-label="colour">orange</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">30</td>
+<td data-label="crosses">-</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer; U4 sits on the ESP32 module can</td>
+</tr>
+<tr>
+<td data-label="id">M-2</td>
+<td data-label="from">U5.GND (second GND pin)</td>
+<td data-label="to">U4.GND</td>
+<td data-label="net">GND</td>
+<td data-label="colour">black</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">30</td>
+<td data-label="crosses">-</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer; U4 sits on the ESP32 module can</td>
+</tr>
+<tr>
+<td data-label="id">M-3</td>
+<td data-label="from">U5.GPIO21</td>
+<td data-label="to">U4.SDA</td>
+<td data-label="net">SDA</td>
+<td data-label="colour">blue</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">30</td>
+<td data-label="crosses">-</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer; U4 sits on the ESP32 module can</td>
+</tr>
+<tr>
+<td data-label="id">M-4</td>
+<td data-label="from">U5.GPIO22</td>
+<td data-label="to">U4.SCL</td>
+<td data-label="net">SCL</td>
+<td data-label="colour">yellow</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">30</td>
+<td data-label="crosses">-</td>
+<td data-label="note">soldered to the cut pin stub on top of the DevKit spacer; U4 sits on the ESP32 module can</td>
+</tr>
+<tr>
+<td data-label="id">M-5</td>
+<td data-label="from">U4.AD0</td>
+<td data-label="to">U4.GND</td>
+<td data-label="net">GND</td>
+<td data-label="colour">bare</td>
+<td data-label="AWG">30</td>
+<td data-label="mm">5</td>
+<td data-label="crosses">-</td>
+<td data-label="note">solder bridge on the GY-521</td>
+</tr>
+<tr>
+<td data-label="id">H2-1</td>
+<td data-label="from">U2 SDA pad (2nd wire)</td>
+<td data-label="to">U6.SDA</td>
+<td data-label="net">SDA</td>
+<td data-label="colour">blue</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">230</td>
+<td data-label="crosses">j6 j7 j8</td>
+<td data-label="note">bundle order SDA, GND, SCL, 3V3, LATCH; runs at y -20..-10 on s6/s7, away from the servo-lead channel</td>
+</tr>
+<tr>
+<td data-label="id">H2-2</td>
+<td data-label="from">U2 GND pad (2nd wire)</td>
+<td data-label="to">U6.GND</td>
+<td data-label="net">GND</td>
+<td data-label="colour">black</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">230</td>
+<td data-label="crosses">j6 j7 j8</td>
+<td data-label="note"></td>
+</tr>
+<tr>
+<td data-label="id">H2-3</td>
+<td data-label="from">U2 SCL pad (2nd wire)</td>
+<td data-label="to">U6.SCL</td>
+<td data-label="net">SCL</td>
+<td data-label="colour">yellow</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">230</td>
+<td data-label="crosses">j6 j7 j8</td>
+<td data-label="note"></td>
+</tr>
+<tr>
+<td data-label="id">H2-4</td>
+<td data-label="from">U2 VCC pad (2nd wire)</td>
+<td data-label="to">U6.VCC</td>
+<td data-label="net">3V3</td>
+<td data-label="colour">orange</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">230</td>
+<td data-label="crosses">j6 j7 j8</td>
+<td data-label="note"></td>
+</tr>
+<tr>
+<td data-label="id">H2-5</td>
+<td data-label="from">board 13B (2nd wire)</td>
+<td data-label="to">P1 (left head pin ring lug)</td>
+<td data-label="net">LATCH</td>
+<td data-label="colour">white</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">250</td>
+<td data-label="crosses">j6 j7 j8</td>
+<td data-label="note"></td>
+</tr>
+<tr>
+<td data-label="id">S-1</td>
+<td data-label="from">U6.GND</td>
+<td data-label="to">P2 (right head pin ring lug)</td>
+<td data-label="net">GND</td>
+<td data-label="colour">black</td>
+<td data-label="AWG">26</td>
+<td data-label="mm">40</td>
+<td data-label="crosses">-</td>
+<td data-label="note"></td>
+</tr>
+<tr>
+<td data-label="id">S-2</td>
+<td data-label="from">U6.AD0</td>
+<td data-label="to">U6.VCC</td>
+<td data-label="net">3V3</td>
+<td data-label="colour">bare</td>
+<td data-label="AWG">30</td>
+<td data-label="mm">5</td>
+<td data-label="crosses">-</td>
+<td data-label="note">solder bridge on the GY-521: address 0x69</td>
+</tr>
+<tr>
+<td data-label="id">S-3</td>
+<td data-label="from">tail notch left</td>
+<td data-label="to">tail notch right</td>
+<td data-label="net">LATCH_BRIDGE</td>
+<td data-label="colour">bare</td>
+<td data-label="AWG">22</td>
+<td data-label="mm">40</td>
+<td data-label="crosses">-</td>
+<td data-label="note">one wire per notch, joined across the back (see the <a href="mechanical.html">Mechanical</a> page)</td>
+</tr>
+<tr>
+<td data-label="id">SV1</td>
+<td data-label="from">M1 (front cradle of s0)</td>
+<td data-label="to">J1 row A (board s5)</td>
+<td data-label="net">SIG1 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">387</td>
+<td data-label="crosses">j1 j2 j3 j4 j5</td>
+<td data-label="note">147 mm short: 20 cm extension (53 mm spare)</td>
+</tr>
+<tr>
+<td data-label="id">SV2</td>
+<td data-label="from">M2 (front cradle of s1)</td>
+<td data-label="to">J1 row B (board s5)</td>
+<td data-label="net">SIG2 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">324</td>
+<td data-label="crosses">j2 j3 j4 j5</td>
+<td data-label="note">84 mm short: 15 cm extension (66 mm spare)</td>
+</tr>
+<tr>
+<td data-label="id">SV3</td>
+<td data-label="from">M3 (front cradle of s2)</td>
+<td data-label="to">J1 row C (board s5)</td>
+<td data-label="net">SIG3 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">261</td>
+<td data-label="crosses">j3 j4 j5</td>
+<td data-label="note">21 mm short: 15 cm extension (129 mm spare)</td>
+</tr>
+<tr>
+<td data-label="id">SV4</td>
+<td data-label="from">M4 (front cradle of s3)</td>
+<td data-label="to">J1 row D (board s5)</td>
+<td data-label="net">SIG4 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">198</td>
+<td data-label="crosses">j4 j5</td>
+<td data-label="note">own lead, 42 mm spare: coil it in the channel</td>
+</tr>
+<tr>
+<td data-label="id">SV5</td>
+<td data-label="from">M5 (front cradle of s4)</td>
+<td data-label="to">J1 row E (board s5)</td>
+<td data-label="net">SIG5 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">135</td>
+<td data-label="crosses">j5</td>
+<td data-label="note">own lead, 105 mm spare: coil it in the channel</td>
+</tr>
+<tr>
+<td data-label="id">SV6</td>
+<td data-label="from">M6 (front cradle of s5)</td>
+<td data-label="to">J1 row F (board s5)</td>
+<td data-label="net">SIG6 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">72</td>
+<td data-label="crosses">-</td>
+<td data-label="note">own lead, 168 mm spare: coil it in the channel</td>
+</tr>
+<tr>
+<td data-label="id">SV7</td>
+<td data-label="from">M7 (front cradle of s6)</td>
+<td data-label="to">J1 row G (board s5)</td>
+<td data-label="net">SIG7 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">133</td>
+<td data-label="crosses">j6</td>
+<td data-label="note">own lead, 107 mm spare: coil it in the channel</td>
+</tr>
+<tr>
+<td data-label="id">SV8</td>
+<td data-label="from">M8 (front cradle of s7)</td>
+<td data-label="to">J1 row H (board s5)</td>
+<td data-label="net">SIG8 / 5V_SERVO / GND</td>
+<td data-label="colour">orange/red/brown (servo lead)</td>
+<td data-label="AWG">28</td>
+<td data-label="mm">196</td>
+<td data-label="crosses">j6 j7</td>
+<td data-label="note">own lead, 44 mm spare: coil it in the channel</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="set-up-the-firmware-toolchain">Set up the firmware toolchain</h2>
+<p>You flash four sketches during bring-up: <code>i2c_scan</code>, <code>servo_center</code>, <code>ouro_robot</code> and the dongle's <code>ouro_dongle</code>. Install the toolchain first.</p>
+<pre><code>brew install arduino-cli
+arduino-cli core update-index &amp;&amp; arduino-cli core install esp32:esp32     # 3.3.12 tested
+arduino-cli lib install ESP32Servo                                        # 3.0.9 tested
+arduino-cli compile -b esp32:esp32:esp32 firmware/ouro_robot
+arduino-cli upload  -b esp32:esp32:esp32 -p /dev/cu.usbserial-XXXX firmware/ouro_robot
+</code></pre>
+<p>In the Arduino IDE the board is <strong>"ESP32 Dev Module"</strong> (FQBN <code>esp32:esp32:esp32</code>) with its defaults: 240 MHz, 4 MB flash, QIO 80 MHz, default partition scheme, PSRAM disabled. Two exceptions. If upload fails at 921600 on a CH340 board, set Upload Speed to 460800 (<code>-b esp32:esp32:esp32:UploadSpeed=460800</code>). If it hangs at "Connecting…", hold BOOT.</p>
+<p>The sketches compile with zero warnings (core 3.3.12, <code>--warnings all</code>). Expect these sizes:</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Sketch</th>
+<th>Flash</th>
+<th>RAM (globals)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Sketch"><code>ouro_robot</code></td>
+<td data-label="Flash">943,067 B (71 %)</td>
+<td data-label="RAM (globals)">48,292 B (14 %)</td>
+</tr>
+<tr>
+<td data-label="Sketch"><code>ouro_dongle</code></td>
+<td data-label="Flash">886,768 B (67 %)</td>
+<td data-label="RAM (globals)">45,832 B (13 %)</td>
+</tr>
+<tr>
+<td data-label="Sketch"><code>servo_center</code></td>
+<td data-label="Flash">286,883 B (21 %)</td>
+<td data-label="RAM (globals)">22,496 B (6 %)</td>
+</tr>
+<tr>
+<td data-label="Sketch"><code>i2c_scan</code></td>
+<td data-label="Flash">294,456 B (22 %)</td>
+<td data-label="RAM (globals)">23,500 B (7 %)</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>ROBOT_ID</code> and <code>WIFI_CHANNEL</code> live in <code>ouro_common.h</code>, which exists in both the robot and dongle sketches. The two copies must be identical.</p>
+<hr />
+<h2 id="bring-up-step-by-step">Bring-up, step by step</h2>
+<p>Each step has an expected reading. Do not move on until you get it.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>#</th>
+<th>Do</th>
+<th>Expect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="#">0</td>
+<td data-label="Do"><strong>Before cutting any pins:</strong> plug the bare DevKit into USB. Flash <code>i2c_scan</code>, then <code>servo_center</code>.</td>
+<td data-label="Expect"><code>i2c_scan</code> prints <code>SDA=1 SCL=1</code> (internal pull-ups) and 0 devices. The on-board LED works, and <code>servo_center</code> drives one servo on GPIO13 through temporary bench jumpers. Only now cut the header pins flush under the spacers. Flash <code>ouro_robot</code> once, so the board boots quietly when the battery goes on.</td>
+</tr>
+<tr>
+<td data-label="#">1</td>
+<td data-label="Do">Pigtail polarity, pack plugged into the XT30 alone</td>
+<td data-label="Expect">Red lead +7.0 to +8.4 V relative to black. Resistance across F1 (pack unplugged): under 0.2 Ω.</td>
+</tr>
+<tr>
+<td data-label="#">2</td>
+<td data-label="Do">Board continuity (<a href="#steps">power board</a> steps 2 and 3)</td>
+<td data-label="Expect">Beeps and non-beeps as listed</td>
+</tr>
+<tr>
+<td data-label="#">3</td>
+<td data-label="Do">Rails, nothing else connected</td>
+<td data-label="Expect">ESP32 buck out (13A) 5.0 ± 0.1 V. Servo + (25A) 5.0 ± 0.1 V. VSENSE (1D) = 0.248 × pack.</td>
+</tr>
+<tr>
+<td data-label="#">4</td>
+<td data-label="Do">I2C pull-ups, all power off, all three I2C boards wired</td>
+<td data-label="Expect">SDA to 3V3 and SCL to 3V3: about 1.9 kΩ (GY-521 with 4.7 kΩ) or about 1.0 kΩ (with 2.2 kΩ). SDA or SCL to GND: open (over 100 kΩ). Under 0.9 kΩ means an extra pull-up somewhere; remove the mid GY-521's pair.</td>
+</tr>
+<tr>
+<td data-label="#">5</td>
+<td data-label="Do">ESP32 wires soldered to the stubs, pack plugged in, no USB</td>
+<td data-label="Expect">Power LED on. 3V3 stub 3.30 ± 0.05 V. 5V stub 4.9–5.1 V. The USB socket stays reachable at the −y end: all later flashing is done in place, with the pack plugged in or not.</td>
+</tr>
+<tr>
+<td data-label="#">6</td>
+<td data-label="Do">Flash <code>i2c_scan</code>, Serial Monitor 115200</td>
+<td data-label="Expect"><code>idle levels SDA=1 SCL=1</code>. At 100 kHz <strong>and</strong> 400 kHz: <code>0x40 INA219 config 0x399F</code> (0x19FF once <code>ouro_robot</code> has run), <code>0x68 ... WHO_AM_I 0x68</code>, <code>0x69 ... WHO_AM_I 0x68</code>. Clone MPU-6500s answer 0x70 or 0x98 and work the same for this firmware.</td>
+</tr>
+<tr>
+<td data-label="#">7</td>
+<td data-label="Do">Flash <code>servo_center</code>. Plug one servo at a time into J1 row k (A = servo 1 … H = servo 8), press <code>k</code>, then <code>c</code></td>
+<td data-label="Expect">The servo goes to its middle and holds. Fit the horn so the joint is straight. <code>s</code> sweeps 1000–2000 µs smoothly with no buzzing at rest.</td>
+</tr>
+<tr>
+<td data-label="#">8</td>
+<td data-label="Do">Flash <code>ouro_robot</code>, Serial Monitor 115200</td>
+<td data-label="Expect">Banner: <code>esp-now ok</code>, <code>mid IMU 0x68 ok  head IMU 0x69 ok  INA219 0x40 ok</code>, battery within 0.15 V of your meter (trim <code>BATT_CAL</code> = meter ÷ reported). 1 Hz line: <code>rail 4.9-5.0 V</code>, <code>mA</code> near 0 with the servos limp, <code>status 0x04</code> (timeout: no dongle yet). Touch a wire across the head pins: <code>latch 1</code>. Lay the mid link flat, face up: <code>az_mid</code> about ±8192 (1 g). The LED blinks 50 ms every second.</td>
+</tr>
+<tr>
+<td data-label="#">9</td>
+<td data-label="Do">Flash the dongle. Robot held in the air: <code>python play_gait.py PORT wave 2</code></td>
+<td data-label="Expect">The dongle LED flickers. Prints show amps, volts, <code>latch=0</code> and a round trip of 10–30 ms. The robot LED is solid while the servos are live.</td>
+</tr>
+<tr>
+<td data-label="#">10</td>
+<td data-label="Do">Pack current, meter in series with the battery lead (10 A range)</td>
+<td data-label="Expect">Limp, radio on: 100–200 mA, mostly idle servos and the radio. <strong>Write this number down</strong>; it sets how fast a forgotten robot kills its pack.</td>
+</tr>
+<tr>
+<td data-label="#">11</td>
+<td data-label="Do">Current calibration: servos live, holding straight, meter in series with the pack</td>
+<td data-label="Expect">Reported servo amps ≈ (pack V × pack A × 0.9 − 0.65) ÷ 5.0. If it is off by more than 10 %, scale <code>INA_MA_PER_LSB</code> (default 0.2).</td>
+</tr>
+<tr>
+<td data-label="#">12</td>
+<td data-label="Do"><code>python host/test_protocol.py</code> (no hardware)</td>
+<td data-label="Expect"><code>all protocol checks passed</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Once step 12 passes, the robot is ready for the gaits and policies on the <a href="software.html">Software</a> and <a href="learning.html">Simulation and RL</a> pages.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Symptom">Servo rail 0 V right after plug-in; ESP32 fine</td>
+<td data-label="Likely cause">Buck A latched at start-up (too much capacitance or a short on the rail)</td>
+<td data-label="Fix">Unplug for 10 s. Check C2 is 220 µF, not 1000 µF. Check columns 25 and 26 for a short.</td>
+</tr>
+<tr>
+<td data-label="Symptom">A buck outputs 0 V on its own</td>
+<td data-label="Likely cause">Module has an EN pad that needs pulling high, or a dead module</td>
+<td data-label="Fix">Tie EN to IN+ through 100 kΩ. If still 0 V, swap the module.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Rail reads 3.3, 9 or 12 V</td>
+<td data-label="Likely cause">Wrong Mini560 variant</td>
+<td data-label="Fix">Replace with a 5 V one before connecting anything.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Servos work, then all stop mid-run; telemetry continues with status bit 3</td>
+<td data-label="Likely cause">Buck A over-temperature or over-current latch (stall)</td>
+<td data-label="Fix">Unplug, cool, replug. Look for a joint fighting a hard stop; lower <code>--gain</code>.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Robot resets when servos start</td>
+<td data-label="Likely cause">ESP32 powered from the servo rail by mistake, or H1 GND open</td>
+<td data-label="Fix">5V_LOGIC must come from the ESP32 buck U3 (13A). Check H1 black.</td>
+</tr>
+<tr>
+<td data-label="Symptom"><code>i2c_scan</code>: nothing found, <code>SDA=0</code></td>
+<td data-label="Likely cause">SDA shorted or a sensor holding the bus</td>
+<td data-label="Fix">Unplug H2. If the bus comes back, check the head wires for a short.</td>
+</tr>
+<tr>
+<td data-label="Symptom">0x69 missing, 0x68 found twice (or vice versa)</td>
+<td data-label="Likely cause">Head GY-521 AD0 not tied to VCC</td>
+<td data-label="Fix">Bridge AD0 to VCC on the head board.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Devices found at 100 kHz but not 400 kHz</td>
+<td data-label="Likely cause">Too much capacitance or crosstalk on H2</td>
+<td data-label="Fix">Shorten or re-route H2, check its GND wire, or set <code>I2C_HZ = 100000</code> (and <code>I2C_TIMEOUT_MS = 6</code>).</td>
+</tr>
+<tr>
+<td data-label="Symptom">Head IMU drops out when the robot curls (status bit 5)</td>
+<td data-label="Likely cause">Broken conductor at a joint</td>
+<td data-label="Fix">Find it by flexing each joint with <code>i2c_scan</code> running. Re-make it with a longer slack loop.</td>
+</tr>
+<tr>
+<td data-label="Symptom"><code>servo_mA</code> stuck near 0 while the servos clearly work</td>
+<td data-label="Likely cause">INA219 wired with VIN+ and VIN− swapped (negative readings) or the servo rail bypassing the shunt</td>
+<td data-label="Fix">W1 must go to VIN+ and W2 from VIN−.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Reported current about 2× too high</td>
+<td data-label="Likely cause">R5 missing (firmware assumes 0.05 Ω)</td>
+<td data-label="Fix">Fit R5, or set <code>INA_MA_PER_LSB = 0.1</code>.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Battery reads 0.3–0.5 V off</td>
+<td data-label="Likely cause">Divider tolerance or ADC calibration</td>
+<td data-label="Fix">Trim <code>BATT_CAL</code>. Use 1 % resistors.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Servos limp with LED blinking fast and status bit 1</td>
+<td data-label="Likely cause">Low battery (latched)</td>
+<td data-label="Fix">Swap the pack. Reset or replug.</td>
+</tr>
+<tr>
+<td data-label="Symptom">LED blinks fast forever at boot</td>
+<td data-label="Likely cause">ESP-NOW init failed</td>
+<td data-label="Fix">Re-flash; check the core is 3.x.</td>
+</tr>
+<tr>
+<td data-label="Symptom">No telemetry, robot LED heartbeat normal</td>
+<td data-label="Likely cause"><code>ROBOT_ID</code> or <code>WIFI_CHANNEL</code> differs between the two <code>ouro_common.h</code> copies</td>
+<td data-label="Fix">Make both copies identical and re-flash both.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Telemetry arrives but the round trip is over 50 ms</td>
+<td data-label="Likely cause">USB-serial driver buffering, or a crowded channel</td>
+<td data-label="Fix">Use the WCH/SiLabs driver; move to a quieter channel; at most 3 robots per channel.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Latch flickers while rolling</td>
+<td data-label="Likely cause">Contact bounce on the steel pins</td>
+<td data-label="Fix">Clean the pins, bend the tail wire to press harder, or fit the A3144 hall switch.</td>
+</tr>
+<tr>
+<td data-label="Symptom">One servo twitches when limp</td>
+<td data-label="Likely cause">Signal wire picking up noise</td>
+<td data-label="Fix">Check the <code>release()</code> firmware is flashed (pins held low). Check the servo's ground.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Battery plug hot or discoloured</td>
+<td data-label="Likely cause">Running on a PH2.0 plug, rated about 2 A</td>
+<td data-label="Fix">Fit XT30 (see <a href="#why-the-circuit-looks-like-this">Why the circuit looks like this</a>).</td>
+</tr>
+<tr>
+<td data-label="Symptom">Pack under 6 V after the robot was left with its battery plugged in</td>
+<td data-label="Likely cause">Drain after cut-off (about 55 mA)</td>
+<td data-label="Fix">Unplug the battery after every run. Retire the pack if a cell is under 3.0 V.</td>
+</tr>
+<tr>
+<td data-label="Symptom">Servo rail dies while the ESP32 keeps reporting</td>
+<td data-label="Likely cause">Buck A latched off (heat or stall)</td>
+<td data-label="Fix">Unplug, let it cool, replug. Telemetry flags it as status bit 3 (rail under 4.5 V).</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="reference">Reference</h2>
+<details class="ref" id="pin-map"><summary>Pin map</summary>
+<p>All used pins exist on both the 30-pin DevKit V1 and the 38-pin DevKitC. None of them is a strapping pin except GPIO2, which only matters if it is pulled <strong>high</strong> at reset. The on-board LED and its resistor pull it low, which is the safe direction.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>GPIO</th>
+<th>DevKit label</th>
+<th>Net</th>
+<th>Dir</th>
+<th>Goes to</th>
+<th>Boot-safety notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="GPIO">13</td>
+<td data-label="DevKit label">D13</td>
+<td data-label="Net">SIG1</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 1 (tail)</td>
+<td data-label="Boot-safety notes">JTAG TCK but quiet at reset. Fine.</td>
+</tr>
+<tr>
+<td data-label="GPIO">26</td>
+<td data-label="DevKit label">D26</td>
+<td data-label="Net">SIG2</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 2</td>
+<td data-label="Boot-safety notes">Quiet at reset (GPIO14, JTAG TMS, toggles during boot).</td>
+</tr>
+<tr>
+<td data-label="GPIO">16</td>
+<td data-label="DevKit label">RX2</td>
+<td data-label="Net">SIG3</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 3</td>
+<td data-label="Boot-safety notes">Free on WROOM-32. Used by PSRAM on WROVER.</td>
+</tr>
+<tr>
+<td data-label="GPIO">17</td>
+<td data-label="DevKit label">TX2</td>
+<td data-label="Net">SIG4</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 4</td>
+<td data-label="Boot-safety notes">Same as 16.</td>
+</tr>
+<tr>
+<td data-label="GPIO">18</td>
+<td data-label="DevKit label">D18</td>
+<td data-label="Net">SIG5</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 5</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">19</td>
+<td data-label="DevKit label">D19</td>
+<td data-label="Net">SIG6</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 6</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">23</td>
+<td data-label="DevKit label">D23</td>
+<td data-label="Net">SIG7</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 7</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">25</td>
+<td data-label="DevKit label">D25</td>
+<td data-label="Net">SIG8</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Servo, joint 8 (neck)</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">21</td>
+<td data-label="DevKit label">D21</td>
+<td data-label="Net">SDA</td>
+<td data-label="Dir">i/o</td>
+<td data-label="Goes to">Mid IMU, INA219, head IMU</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">22</td>
+<td data-label="DevKit label">D22</td>
+<td data-label="Net">SCL</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">Same</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">27</td>
+<td data-label="DevKit label">D27</td>
+<td data-label="Net">LATCH</td>
+<td data-label="Dir">in</td>
+<td data-label="Goes to">Left head pin P1</td>
+<td data-label="Boot-safety notes">Internal ~45 kΩ pull-up; low = latched.</td>
+</tr>
+<tr>
+<td data-label="GPIO">34</td>
+<td data-label="DevKit label">D34</td>
+<td data-label="Net">VSENSE</td>
+<td data-label="Dir">in</td>
+<td data-label="Goes to">Divider midpoint</td>
+<td data-label="Boot-safety notes">ADC1 (works with Wi-Fi on; ADC2 does not). Input-only pin.</td>
+</tr>
+<tr>
+<td data-label="GPIO">2</td>
+<td data-label="DevKit label">D2</td>
+<td data-label="Net">LED</td>
+<td data-label="Dir">out</td>
+<td data-label="Goes to">On-board LED</td>
+<td data-label="Boot-safety notes">Strapping pin, safe as wired.</td>
+</tr>
+<tr>
+<td data-label="GPIO">–</td>
+<td data-label="DevKit label">5V / VIN</td>
+<td data-label="Net">5V_LOGIC</td>
+<td data-label="Dir">pwr</td>
+<td data-label="Goes to">Buck B output</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+<tr>
+<td data-label="GPIO">–</td>
+<td data-label="DevKit label">3V3</td>
+<td data-label="Net">3V3</td>
+<td data-label="Dir">pwr</td>
+<td data-label="Goes to">IMUs, INA219 logic</td>
+<td data-label="Boot-safety notes">About 10 mA load.</td>
+</tr>
+<tr>
+<td data-label="GPIO">–</td>
+<td data-label="DevKit label">GND ×2</td>
+<td data-label="Net">GND</td>
+<td data-label="Dir">pwr</td>
+<td data-label="Goes to">Power board (H1), mid IMU</td>
+<td data-label="Boot-safety notes"></td>
+</tr>
+</tbody>
+</table></div>
+<p>Pins deliberately not used: 0, 5, 12, 15 (strapping), 14 (noisy at boot), 1 and 3 (USB serial), 6 to 11 (flash), 36 and 39 (spare inputs).</p>
+</details><details class="ref" id="power-budget"><summary>Power budget</summary>
+<h4 id="loads-and-battery-current">Loads and battery current</h4>
+<p>Assumptions: servo rail at 5.0 V; buck efficiency 90 % at 1–2.5 A, 85 % at 5.6 A, 80 % for the lightly loaded ESP32 buck; the ESP32 side draws about 130 mA at 5 V with the radio always on; usable capacity 85 % of 500 mAh (to about 3.45 V per cell resting). The servo currents (1.0, 1.8, 2.3, 5.6 A) come from the simulation, so the run times are estimates until you measure your own.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Case</th>
+<th>Servo rail</th>
+<th>Pack power</th>
+<th><strong>Pack current</strong></th>
+<th>C-rate</th>
+<th>Run time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Case">Limp (radio on)</td>
+<td data-label="Servo rail">0 A</td>
+<td data-label="Pack power">0.8 W</td>
+<td data-label="Pack current">0.11 A</td>
+<td data-label="C-rate">0.2 C</td>
+<td data-label="Run time">–</td>
+</tr>
+<tr>
+<td data-label="Case">Standing as a wheel</td>
+<td data-label="Servo rail">1.0 A</td>
+<td data-label="Pack power">6.4 W</td>
+<td data-label="Pack current"><strong>0.86 A</strong></td>
+<td data-label="C-rate">1.7 C</td>
+<td data-label="Run time"><strong>≈ 30 min</strong></td>
+</tr>
+<tr>
+<td data-label="Case">Crawling (wave)</td>
+<td data-label="Servo rail">1.8 A</td>
+<td data-label="Pack power">10.8 W</td>
+<td data-label="Pack current"><strong>1.46 A</strong></td>
+<td data-label="C-rate">2.9 C</td>
+<td data-label="Run time"><strong>≈ 17 min</strong></td>
+</tr>
+<tr>
+<td data-label="Case">Rolling (trained policy)</td>
+<td data-label="Servo rail">2.3 A</td>
+<td data-label="Pack power">13.6 W</td>
+<td data-label="Pack current"><strong>1.84 A</strong></td>
+<td data-label="C-rate">3.7 C</td>
+<td data-label="Run time"><strong>≈ 14 min</strong></td>
+</tr>
+<tr>
+<td data-label="Case">Rolling (final policy, retrained with hard end stops)</td>
+<td data-label="Servo rail">2.7 A</td>
+<td data-label="Pack power">15.9 W</td>
+<td data-label="Pack current"><strong>≈ 2.2 A</strong></td>
+<td data-label="C-rate">4.3 C</td>
+<td data-label="Run time"><strong>≈ 12 min</strong></td>
+</tr>
+<tr>
+<td data-label="Case">All 8 stalled</td>
+<td data-label="Servo rail">5.6 A</td>
+<td data-label="Pack power">33.8 W</td>
+<td data-label="Pack current"><strong>≈ 5.0 A</strong> (pack at 6.8 V)</td>
+<td data-label="C-rate">10 C</td>
+<td data-label="Run time">seconds, by design</td>
+</tr>
+</tbody>
+</table></div>
+<p>With a 450 mAh pack, take 10 % off the run times. A mixed class session (crawl, bite, a few rolls, lots of standing) gets about 20 minutes per pack. The kit's second pack is not optional.</p>
+<h4 id="what-gives-out-first-in-order">What gives out first, in order</h4>
+<ol>
+<li><strong>A PH2.0 plug</strong>, if you used one. About 2 A rating against 1.84 A continuous and 5 A in a stall. That is why the robot uses XT30.</li>
+<li><strong>Buck A's temperature.</strong> One bench test of a Mini560 5 V module (Gogo Tronics, NZ) found 5 A continuous, over-temperature shutdown from about 6.5 A in a cool room, current limit near 8 A, and <strong>both protections latch off until power is cycled</strong>. A Mini560 Pro listing says 3 A continuous without a heatsink. At 2.3 A average with 1.3 W of loss Buck A should be fine; it sits on top of the stack so its heat goes to air, not into the ESP32's buck. At 5.6 A it loses about 5 W and will heat fast. Stalls must stay short; the firmware and <code>run_policy.py</code> both make sure they do. If the servo rail dies while the ESP32 keeps reporting, the buck has latched off: unplug, let it cool, replug. Telemetry flags this as status bit 3 (rail under 4.5 V).</li>
+<li><strong>The 3 A polyfuse.</strong> 1.84 A is fine. A 5 A stall is under its 6 A trip current, but a hot fuse derates, so a long stall can trip it. That is the fuse doing its job; it resets once cool.</li>
+<li><strong>The pack.</strong> 10 C at stall against a 30 C rating is fine.</li>
+<li><strong>Wiring.</strong> 22 AWG silicone (53 mΩ/m) on the battery run drops 16 mV at 1.84 A. The board's bare 20–22 AWG traces are shorter still. Servo leads carry at most 0.7 A each.</li>
+</ol>
+<h4 id="voltage-sag">Voltage sag</h4>
+<p>Pack internal resistance (about 0.1 Ω for a cheap 2S 500 mAh), plus the polyfuse (about 0.05 Ω) and leads, comes to about 0.17 Ω. That is 0.3 V of sag rolling and 0.85 V in a stall. Listings claim the Mini560 needs about 2 V of headroom (7 V in for 5 V out). A synchronous buck at a few amps usually manages with far less, but no datasheet confirms it. Near the end of the pack, a stall can pull the servo rail below 5 V. The servos still work there; status bit 3 tells you. The ESP32's buck carries only 0.13 A, so it keeps regulating well below that.</p>
+<h4 id="mini560-buck-facts">Mini560 buck facts</h4>
+<p>No manufacturer datasheet exists for "Mini560"; these come from seller listings and one third-party bench test. Fixed-voltage synchronous buck module, about 29 × 18 × 5.4 mm, castellated pads, 500 kHz switching. Input range is listed variously as 7–20 V, 5–20 V and up to 32 V, so treat 20 V as the limit. Efficiency is listed as "90–95 %". One tester measured 2.5 mA idle and under 100 mV ripple. An EN pad, where present, is active high. <strong>Fit only modules marked 5 V</strong>, and check the output with a meter before connecting anything (bring-up step 3).</p>
+<h4 id="does-the-esp32-need-its-own-buck-or-would-an-lc-filter-do">Does the ESP32 need its own buck, or would an LC filter do</h4>
+<p>It needs its own buck. An LC filter from the servo rail removes switching noise but not sag. When eight servos start together, or Buck A latches off on over-temperature, the servo rail falls. The DevKit's AMS1117 regulator needs about 4.4 V in to hold 3.3 V, so the ESP32 would brown out and reset exactly when the robot is in trouble. A $2.50 second buck makes the radio independent of the servos. Its input sees only the pack, which never sags that far.</p>
+<p><strong>Brown-out behaviour:</strong> the ESP32 brown-out detector trips near 2.4 V on its 3.3 V rail. With Buck B it should only ever trip if the pack is unplugged.</p>
+<h4 id="servo-voltage-50-v-not-60-v">Servo voltage: 5.0 V, not 6.0 V</h4>
+<p>MG90S servos are rated 4.8–6 V, and 6 V gives about 20 % more speed and torque. Here 5.0 V is the better choice:</p>
+<ul>
+<li><strong>Heat is the main wear mechanism.</strong> The closed loop makes the servos fight, and fighting current rises with voltage. 6 V would push the rolling average from about 2.3 A toward 2.8 A, and the stall case from 5.6 A to about 6.8 A, past the bench-tested over-temperature point of the buck.</li>
+<li><strong>No fixed 6 V Mini560 exists.</strong> A 6 V rail means an adjustable buck, and a mis-set adjustable buck is how a 9 V rail kills eight servos.</li>
+<li><strong>6 V out needs about 8 V in</strong> with the listed headroom, so the bottom half of the pack would not regulate.</li>
+<li><strong>The simulator models 5 V servos</strong> (stall 0.15 N·m, slew 5–10 rad/s). Training at one voltage and running at another adds a sim-to-real gap for no gain.</li>
+</ul>
+<h4 id="capacitors-ripple-and-inrush">Capacitors, ripple and inrush</h4>
+<p>C2, 220 µF low-ESR at the servo header, smooths the 50 Hz current bursts. Analog servos drive their motors once per 20 ms frame, and all eight frames start together. The 220 µF limit comes from the Mini560's start-up latch-off above about 440 µF. No input bulk capacitor is fitted: with about 100 nH of battery lead, the modules' ceramic input capacitors and about 0.1 Ω of pack resistance, the plug-in transient is close to critically damped (ζ ≈ 0.7). The overshoot stays well under the 20 V input rating. Plugging in still sparks a little, which XT30 handles.</p>
+<h4 id="reverse-polarity-and-shorts">Reverse polarity and shorts</h4>
+<p>There is no reverse-polarity circuit. A series diode would waste 0.7 W. A crowbar diode cannot survive long enough to trip a polyfuse at LiPo fault currents. An ideal-diode P-FET is beyond the student-perfboard and $5 budget. The keyed XT30 is the protection. The only moment polarity can be wrong is when you solder the pigtail, and bring-up step 1 checks it with a meter. A short anywhere after F1 trips the PTC in well under a second at the tens of amps a 30 C pack delivers.</p>
+<h4 id="low-voltage-cut-off-and-drain-after-cut-off">Low-voltage cut-off and drain after cut-off</h4>
+<ul>
+<li>The cut-off is <strong>6.6 V under load for 2 s</strong>, about 3.3 V per cell loaded or about 3.45 V resting, with roughly 10 % of capacity left. It latches: the servos stay limp even when the pack bounces back, until reset.</li>
+<li>30 s later (long enough for the computer to see status bit 1), the firmware sleeps the IMUs, powers down the INA219, turns the radio off and puts the ESP32 into deep sleep.</li>
+<li><strong>The pack keeps draining</strong> after that. Two idle bucks (about 2.5 mA each), the DevKit's regulator, USB chip and power LED (about 10 mA), the divider (60 µA), and eight idle servos (estimated at about 5 mA each) come to roughly <strong>55 mA</strong>. That is about 50 mAh, or <strong>about an hour to 3.0 V per cell</strong>. Without the sleep it would be about 170 mA, or 20 minutes. Measure yours in bring-up step 10. Rule: <strong>unplug the battery at the end of every run.</strong> Never store the robot plugged in.</li>
+</ul>
+</details><details class="ref" id="what-the-firmware-does"><summary>What the firmware does</summary>
+<p>The robot firmware is <code>firmware/ouro_robot</code>, the dongle firmware <code>firmware/ouro_dongle</code>. These are the behaviours that matter on the bench, and the reason for each.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Area</th>
+<th>Behaviour</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Area">IMU reads</td>
+<td data-label="Behaviour">Read into aligned arrays, then <code>memcpy</code> into the packet.</td>
+<td data-label="Why">Writing <code>int16_t</code> through a pointer into a <strong>packed</strong> struct is an unaligned 16-bit store, which raises a LoadStoreAlignment exception (reboot) on the Xtensa core.</td>
+</tr>
+<tr>
+<td data-label="Area">Byte order</td>
+<td data-label="Behaviour">One <code>Wire.read()</code> per statement, then combine.</td>
+<td data-label="Why">In <code>(Wire.read() &lt;&lt; 8) \| Wire.read()</code> C++ does not specify which <code>read()</code> runs first, so the byte order would be up to the compiler.</td>
+</tr>
+<tr>
+<td data-label="Area">Command handoff</td>
+<td data-label="Behaviour">Spinlock (<code>portENTER_CRITICAL</code>) around the command copy in both places; <code>loop()</code> works on one snapshot per tick; signed time difference for the timeout.</td>
+<td data-label="Why">The ESP-NOW receive callback runs in the Wi-Fi task on core 0 while <code>loop()</code> runs on core 1, so commands could tear. An unsigned <code>now - lastCmdMs</code> with <code>lastCmdMs</code> stamped after <code>now</code> underflows to about 4 billion and gives a false timeout: servos detach for one tick, then slam back. At 50 commands a second that would recur as visible jitter.</td>
+</tr>
+<tr>
+<td data-label="Area">Servo resolution</td>
+<td data-label="Behaviour"><code>setTimerWidth(16)</code> after <code>attach()</code>: 0.3 µs steps.</td>
+<td data-label="Why">ESP32Servo's <code>attach()</code> uses a 10-bit timer, 19.5 µs per step, about 1.75° of servo, and resets the width every time it is called.</td>
+</tr>
+<tr>
+<td data-label="Area">Going limp</td>
+<td data-label="Behaviour">LEDC channels allocated once at boot. Limp = <code>release()</code> (duty 0, pin held low). All servo pins driven low as the first thing in <code>setup()</code>.</td>
+<td data-label="Why">Detaching and re-attaching re-allocates channels and lets the 30 cm signal leads float while limp, and floating leads twitch the servos from pickup. 8 channels at one 50 Hz frequency share timers; the classic ESP32 has 16 channels, so there is room.</td>
+</tr>
+<tr>
+<td data-label="Area">Joint 2 pin</td>
+<td data-label="Behaviour">GPIO26.</td>
+<td data-label="Why">GPIO14 toggles during boot and twitches the servo at power-up.</td>
+</tr>
+<tr>
+<td data-label="Area">I2C robustness</td>
+<td data-label="Behaviour">3 ms timeout (the <code>Wire</code> default is 50 ms with no recovery). Bus recovery (9 SCL clocks plus a STOP) when SDA or SCL is stuck low. A sensor that fails 3 reads in a row is marked faulty and re-initialised every 500 ms. Fault bits in <code>status</code>. The last good values are repeated, never zeros.</td>
+<td data-label="Why">A broken wire or a sensor that browned out mid-byte can hold SDA low and freeze telemetry and slew together. Repeating last good values keeps the policy from seeing a fake free-fall.</td>
+</tr>
+<tr>
+<td data-label="Area">INA219</td>
+<td data-label="Behaviour">Config 0x19FF: 16 V bus, ±320 mV, <strong>128-sample average (68 ms, about 3 servo frames)</strong>. Bus voltage read too (rail-sag flag). Scale 0.2 mA/LSB for the 0.05 Ω shunt. Telemetry stays mA in an int16, so <code>link.py</code> needs no new math.</td>
+<td data-label="Why">The power-on default (32 V range, ±320 mV, one 532 µs sample) takes a single sample of a current that comes in 50 Hz bursts, which is noise.</td>
+</tr>
+<tr>
+<td data-label="Area">INA219 math</td>
+<td data-label="Behaviour">Shunt LSB 10 µV; PGA ÷8 is ±320 mV full scale; the register is two's complement, so the sign is right with VIN+ on the buck side. 0.1 Ω gives 0.1 mA/LSB and 3.2 A full scale; 0.05 Ω gives 0.2 mA/LSB and 6.4 A.</td>
+<td data-label="Why"></td>
+</tr>
+<tr>
+<td data-label="Area">Low battery</td>
+<td data-label="Behaviour">Latched until reset; deep sleep 30 s later.</td>
+<td data-label="Why">Without the latch, the pack recovers once the servos stop, the servos come back, the voltage sags again: an oscillation that damages a nearly empty LiPo.</td>
+</tr>
+<tr>
+<td data-label="Area">Battery ADC</td>
+<td data-label="Behaviour"><code>analogReadMilliVolts</code> (eFuse calibration, about ±1–2 % on ADC1 at 11 dB between 0.15 and 2.45 V; the divider gives 1.5–2.1 V), IIR filter (about 80 ms), <code>BATT_CAL</code> trim constant, C3 on the divider.</td>
+<td data-label="Why">1 % resistors add 1 % tolerance.</td>
+</tr>
+<tr>
+<td data-label="Area">Slew cap</td>
+<td data-label="Behaviour">32 µs per 5 ms tick = 10 rad/s, the top of the simulator's 5–10 rad/s trained range.</td>
+<td data-label="Why">Faster than that (40 µs per tick is 12.6 rad/s) exceeds both the trained range and the MG90S's own speed. The first command after going live still jumps, because there is no position feedback.</td>
+</tr>
+<tr>
+<td data-label="Area">ESP-NOW setup</td>
+<td data-label="Behaviour">Every init call checked (fast LED blink forever on failure), <code>WiFi.setSleep(false)</code>, <code>peer.ifidx</code> explicit. Receive callback uses the core 3.x signature <code>(const esp_now_recv_info_t*, const uint8_t*, int)</code>.</td>
+<td data-label="Why">Unchecked init fails silently. The send-callback signature changed in IDF 5.5, but no send callback is used.</td>
+</tr>
+<tr>
+<td data-label="Area">Command timeout</td>
+<td data-label="Behaviour">300 ms.</td>
+<td data-label="Why">The host sends at 50 Hz, so this is 15 missed frames.</td>
+</tr>
+<tr>
+<td data-label="Area">Telemetry</td>
+<td data-label="Behaviour">100 Hz broadcast.</td>
+<td data-label="Why">Airtime at the 1 Mbps ESP-NOW default is about 0.85 ms per 38-byte frame plus 0.7 ms per command at 50 Hz, <strong>about 12 % of a channel per robot</strong>. There are no ACKs, so collisions are silent losses. Keep <strong>at most 3 robots per channel</strong> (channels 1, 6, 11 give 9 robots per room). Above that, lower telemetry to 50 Hz.</td>
+</tr>
+<tr>
+<td data-label="Area">Dongle</td>
+<td data-label="Behaviour">The Wi-Fi callback only queues; <code>loop()</code> writes to <code>Serial</code>. The parser resyncs on <code>AA AA 55</code> and checks magic and robot ID before transmitting.</td>
+<td data-label="Why">Writing to <code>Serial</code> inside the Wi-Fi callback would block the Wi-Fi task when the UART buffer fills.</td>
+</tr>
+<tr>
+<td data-label="Area">Serial link</td>
+<td data-label="Behaviour">921600 baud. A 42-byte frame takes 0.46 ms, and the 4.2 kB/s of telemetry is 5 % of the link. CP2102 and CP2104 do 921600 (1 Mbaud max), and so does CH340C (2 Mbaud max). None has the FTDI 16 ms latency timer.</td>
+<td data-label="Why">On macOS, use the WCH driver for CH340 if the built-in one drops bytes. If frames drop, use 460800 on both sides (<code>BAUD</code> in the dongle, <code>OuroLink(port, baud=460800)</code>).</td>
+</tr>
+<tr>
+<td data-label="Area">Round-trip time</td>
+<td data-label="Behaviour"><code>host/link.py</code> measures RTT on the first echo of each command seq only (<code>sent_at.pop()</code>).</td>
+<td data-label="Why">Each seq echoes in about 2 frames; timing against every echo would read about 5 ms high.</td>
+</tr>
+<tr>
+<td data-label="Area">Status line</td>
+<td data-label="Behaviour">The robot prints a 1 Hz status line on USB serial.</td>
+<td data-label="Why">For bring-up.</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Telemetry status bits</strong> (in the 38-byte packet): bit 0 servo pulses live, bit 1 low battery (latched), bit 2 command timeout (seen as <code>status 0x04</code> before the dongle is running), bit 3 servo rail under 4.5 V while live, bit 4 mid IMU fault, bit 5 head IMU fault, bit 6 INA219 fault.</p>
+</details><details class="ref" id="i2c-at-400-khz-over-the-strap"><summary>I2C at 400 kHz over the strap</summary>
+<p>The bus has two GY-521 boards, each with pull-ups to its VCC (4.7 kΩ or 2.2 kΩ depending on the batch), and the INA219 with 10 kΩ, all on 3.3 V. In parallel that is <strong>1.9 kΩ</strong> (4.7k boards) or <strong>1.0 kΩ</strong> (2.2k boards). At 1.0 kΩ the sink current is 3.3 mA, right at the I2C 3 mA guideline. The ESP32 and MPU-6050 drive it fine, but if bring-up step 4 reads under 0.9 kΩ, remove the mid GY-521's two pull-up resistors.</p>
+<p>Estimated bus capacitance: about 25 pF for 330 mm of wire, plus about 40 pF for four device pins, ≈ 65 pF. The 30–70 % rise time is 0.85 × R × C = <strong>55–105 ns, against the 300 ns Fast-mode limit</strong>: 400 kHz is electrically sound with about 3× margin. Bring-up step 6 confirms it on your build. The real risks are crosstalk from servo leads and wires breaking in flexing joints. For that, H2 puts ground between SDA and SCL and runs away from servo leads 7 and 8, and the firmware has timeouts, recovery and fault flags.</p>
+<p>A full telemetry read takes about 1 ms at 400 kHz, against 4 ms at 100 kHz. If step 6 finds devices at 100 kHz but not at 400 kHz, set <code>I2C_HZ = 100000</code> and <code>I2C_TIMEOUT_MS = 6</code>; everything still fits in the 5 ms tick.</p>
+</details><details class="ref" id="packet-formats-and-the-host-side"><summary>Packet formats and the host side</summary>
+<p><code>host/link.py</code> uses these struct formats, which match the firmware's <code>ouro_common.h</code> byte for byte:</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Packet</th>
+<th>Format</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Packet">Command</td>
+<td data-label="Format"><code>&lt;BBBB8H</code></td>
+<td data-label="Size">20 bytes</td>
+</tr>
+<tr>
+<td data-label="Packet">Telemetry</td>
+<td data-label="Format"><code>&lt;BBBBI6h6hhHBB</code></td>
+<td data-label="Size">38 bytes</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>host/test_protocol.py</code> checks this. It compiles a C++ probe against the real <code>ouro_common.h</code> to compare every field offset and a sample packet. It then runs the real <code>OuroLink</code> against a fake serial port: it checks the command frame the dongle will parse, and checks that a firmware-layout telemetry frame (with junk in front) unpacks to the right SI values. Run it with <code>python host/test_protocol.py</code> (bring-up step 12).</p>
+<p><code>run_policy.py</code> keeps the observation the simulator uses: <code>min(amps, 3.2) / 3.0</code>. Its stop rule (over 3.1 A for 2 s) works as intended. Its message says "pinned at the 3.2 A sensor limit", but the sensor actually reads to 6.4 A.</p>
+</details><details class="ref" id="netlist"><summary>Netlist</summary>
+<p>Refs as in the schematic. <code>J1.Gk / Vk / Sk</code> are the ground, +5 V and signal pins of header position k (board row A…H = servo 1…8). <code>P1</code>, <code>P2</code> are the two head screws; <code>W0</code> is the tail's bare bridge wire.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Net</th>
+<th>Connects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VBAT_RAW</code></td>
+<td>BT1.+, J0.+, F1.1</td>
+</tr>
+<tr>
+<td><code>VBAT_F</code></td>
+<td>F1.2, U1.IN+, U3.IN+, R1.1</td>
+</tr>
+<tr>
+<td><code>GND</code></td>
+<td>BT1.-, J0.-, U1.GND, U3.GND, U2.GND, C2.-, R2.2, C3.2, U5.GND, U4.GND, U4.AD0, U6.GND, P2.1, J1.G1, J1.G2, J1.G3, J1.G4, J1.G5, J1.G6, J1.G7, J1.G8, M1.GND, M2.GND, M3.GND, M4.GND, M5.GND, M6.GND, M7.GND, M8.GND</td>
+</tr>
+<tr>
+<td><code>5V_SHUNT_IN</code></td>
+<td>U1.OUT+, U2.VIN+, R5.1</td>
+</tr>
+<tr>
+<td><code>5V_SERVO</code></td>
+<td>U2.VIN-, R5.2, C2.+, J1.V1, J1.V2, J1.V3, J1.V4, J1.V5, J1.V6, J1.V7, J1.V8, M1.V+, M2.V+, M3.V+, M4.V+, M5.V+, M6.V+, M7.V+, M8.V+</td>
+</tr>
+<tr>
+<td><code>5V_LOGIC</code></td>
+<td>U3.OUT+, U5.5V</td>
+</tr>
+<tr>
+<td><code>3V3</code></td>
+<td>U5.3V3, U4.VCC, U2.VCC, U6.VCC, U6.AD0</td>
+</tr>
+<tr>
+<td><code>SDA</code></td>
+<td>U5.GPIO21, U4.SDA, U2.SDA, U6.SDA</td>
+</tr>
+<tr>
+<td><code>SCL</code></td>
+<td>U5.GPIO22, U4.SCL, U2.SCL, U6.SCL</td>
+</tr>
+<tr>
+<td><code>VSENSE</code></td>
+<td>R1.2, R2.1, C3.1, U5.GPIO34</td>
+</tr>
+<tr>
+<td><code>LATCH</code></td>
+<td>U5.GPIO27, P1.1</td>
+</tr>
+<tr>
+<td><code>LATCH_BRIDGE</code></td>
+<td>P1.2, W0.1, W0.2, P2.2</td>
+</tr>
+<tr>
+<td><code>SIG1</code></td>
+<td>U5.GPIO13, J1.S1, M1.SIG</td>
+</tr>
+<tr>
+<td><code>SIG2</code></td>
+<td>U5.GPIO26, J1.S2, M2.SIG</td>
+</tr>
+<tr>
+<td><code>SIG3</code></td>
+<td>U5.GPIO16, J1.S3, M3.SIG</td>
+</tr>
+<tr>
+<td><code>SIG4</code></td>
+<td>U5.GPIO17, J1.S4, M4.SIG</td>
+</tr>
+<tr>
+<td><code>SIG5</code></td>
+<td>U5.GPIO18, J1.S5, M5.SIG</td>
+</tr>
+<tr>
+<td><code>SIG6</code></td>
+<td>U5.GPIO19, J1.S6, M6.SIG</td>
+</tr>
+<tr>
+<td><code>SIG7</code></td>
+<td>U5.GPIO23, J1.S7, M7.SIG</td>
+</tr>
+<tr>
+<td><code>SIG8</code></td>
+<td>U5.GPIO25, J1.S8, M8.SIG</td>
+</tr>
+</tbody>
+</table></div>
+</details><details class="ref" id="numbers-to-measure-on-your-build"><summary>Numbers to measure on your build</summary>
+<p>These values come from listings, one bench test, the simulator or the CAD. Your bring-up readings replace them. See also <a href="risks.html">Limits</a>.</p>
+<ul>
+<li><strong>Mini560 behaviour:</strong> continuous current without a heatsink, dropout at 6–7 V in, start-up behaviour with 220 µF, whether your batch has an EN pad and which way it defaults.</li>
+<li><strong>Servo currents</strong> (simulation numbers) and the idle current of a limp MG90S (about 5 mA assumed), which set the run times and the after-cut-off drain.</li>
+<li><strong>Pack internal resistance</strong> (about 0.1 Ω assumed), which sets the sag numbers.</li>
+<li><strong>GY-521 pull-up value</strong> in your batch, and the real H2 capacitance (bring-up steps 4 and 6).</li>
+<li><strong>INA219 accuracy with the paralleled shunt:</strong> lead and trace resistance shift the current split by a few percent. Bring-up step 11 calibrates it.</li>
+<li><strong>Held-low servo signal:</strong> an analog MG90S is expected to treat a held-low signal like no signal, since both mean no pulse.</li>
+<li><strong>ESP-NOW airtime and loss</strong> with several robots per channel, and whether 100 Hz broadcast holds up in a busy classroom.</li>
+<li><strong>CH340 at 921600 on macOS</strong> with the built-in driver.</li>
+<li><strong>Servo lead length</strong> (240 mm assumed). Measure one before ordering extensions.</li>
+<li><strong>Mini560 and INA219 sizes.</strong> The board is drawn for 29 × 18 mm bucks and a 22.9 mm wide INA; the CAD uses 20 × 14 and 25.6 mm.</li>
+<li><strong>Mechanical fit:</strong> the board bands, the XT30 on top of the pack and the servo-wire bend above z 27 pass the CAD sweep, not yet a build with real wire.</li>
+</ul></section></details>
+<div class="pager"><a href="mechanical.html">&larr; Mechanical</a><a href="software.html">Software &rarr;</a></div>
+</main></div>
+<footer><div class="wrap">Ouro is an open robot project from <a href="https://buildrobotz.com/">BuildRobotz</a>. The design was generated with AI and has not yet been built or tested on hardware; performance figures are MuJoCo simulation results. Build at your own risk. Code, CAD and firmware: <a href="https://github.com/buildrobotz/ouro-robot">github.com/buildrobotz/ouro-robot</a> (code MIT, docs and CAD CC BY-SA 4.0).<br>
+<a href="https://buildrobotz.com/robots/">More robots to build</a> · <a href="https://buildrobotz.com/">Learn robotics with BuildRobotz</a></div></footer>
+<script>(function(){var a=document.querySelector('nav [aria-current]');if(a&&a.parentNode.scrollWidth>a.parentNode.clientWidth)a.parentNode.scrollLeft=a.offsetLeft-a.parentNode.clientWidth/2+a.offsetWidth/2;
+function op(){var t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var e=t;e;e=e.parentElement)if(e.tagName==='DETAILS')e.open=true;if(t)t.scrollIntoView();}
+addEventListener('hashchange',op);op();})();</script>
+
+</body></html>

@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mechanical · Ouro robot</title>
+<meta name="description" content="Nine prints from six part files, no supports. Spin the models, download the STLs, then build one joint and the rest follow.">
+<link rel="icon" href="data:,"><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css"></head>
+<body>
+<div class="crumb"><div class="wrap"><a href="https://buildrobotz.com/">BuildRobotz</a><span aria-hidden="true">/</span><a href="https://buildrobotz.com/robots/">Robots</a><span aria-hidden="true">/</span><span>Ouro</span></div></div>
+<header class="top"><div class="wrap"><a class="brand" href="index.html">Ouro<span>.</span></a><nav aria-label="Project pages"><a href="index.html">Overview</a><a href="build.html">Build plan</a><a href="parts.html">Parts</a><a href="mechanical.html" aria-current="page">Mechanical</a><a href="electronics.html">Electronics</a><a href="software.html">Software</a><a href="learning.html">Simulation and RL</a><a href="course.html">Learning path</a><a href="risks.html">Limits</a></nav></div></header>
+<div class="wrap"><main>
+<header><div class="eyebrow">BuildRobotz project · Mechanical</div><h1>Print and assemble</h1><p class="lede">Nine prints from six part files, no supports. Spin the models, download the STLs, then build one joint and the rest follow.</p></header>
+<details class="toc"><summary>On this page</summary><ol><li><a href="#what-youre-printing">What you're printing</a></li><li><a href="#print-the-test-coupon-first">Print the test coupon first</a></li><li><a href="#one-joint-step-by-step">One joint, step by step</a></li><li><a href="#the-other-joints-and-the-o-rings">The other joints and the O-rings</a></li><li><a href="#the-magnet-latch">The magnet latch</a></li><li><a href="#where-each-board-mounts">Where each board mounts</a></li><li><a href="#design-reference">Design reference</a></li></ol></details>
+<section><div class="viewer" data-models='[{"label": "Closed wheel", "file": "models/assembled_wheel.glb", "color": null}, {"label": "Flat strap", "file": "models/assembled_flat.glb", "color": null}, {"label": "Link (x4)", "file": "models/link.stl", "color": "#f2b632"}, {"label": "Battery link s3", "file": "models/link_s3_battery.stl", "color": "#f2b632"}, {"label": "ESP32 link s4", "file": "models/link_s4_esp32.stl", "color": "#f2b632"}, {"label": "Power link s5", "file": "models/link_s5_power.stl", "color": "#f2b632"}, {"label": "Tail", "file": "models/tail.stl", "color": "#d9560f"}, {"label": "Head", "file": "models/head.stl", "color": "#d9560f"}, {"label": "Test coupon", "file": "models/coupon.stl", "color": "#8fae9f"}]'><canvas class="view"></canvas><span class="hint">drag to orbit · scroll to zoom</span></div>
+<div class="bar vbar" style="border:1px solid var(--rule);border-top:0;border-radius:0 0 6px 6px"></div></section>
+<section class="prose"><h4>Download the print files</h4><p><a class="btn" href="models/coupon.stl">coupon.stl</a> <a class="btn" href="models/head.stl">head.stl</a> <a class="btn" href="models/link.stl">link.stl</a> <a class="btn" href="models/link_s3_battery.stl">link_s3_battery.stl</a> <a class="btn" href="models/link_s4_esp32.stl">link_s4_esp32.stl</a> <a class="btn" href="models/link_s5_power.stl">link_s5_power.stl</a> <a class="btn" href="models/tail.stl">tail.stl</a> <a class="btn" href="assets/check_fit.txt">check_fit.txt (full fit report)</a></p></section>
+<div class="gallery"><figure class="fig"><img src="assets/cad_render_flat.jpg" alt="Flat strap with servos and electronics" loading="lazy"><figcaption>Flat strap with servos and electronics</figcaption></figure><figure class="fig"><img src="assets/cad_render_joint_exploded.jpg" alt="One joint, exploded: servo, zip tie, horn, fork, pivot screw" loading="lazy"><figcaption>One joint, exploded: servo, zip tie, horn, fork, pivot screw</figcaption></figure><figure class="fig"><img src="assets/cad_render_latch.jpg" alt="Latch section: steel pin in the notch, magnet 0.8 mm behind" loading="lazy"><figcaption>Latch section: steel pin in the notch, magnet 0.8 mm behind</figcaption></figure><figure class="fig"><img src="assets/cad_render_link_side.jpg" alt="One link, side view" loading="lazy"><figcaption>One link, side view</figcaption></figure><figure class="fig"><img src="assets/cad_render_link_top.jpg" alt="One link, top view" loading="lazy"><figcaption>One link, top view</figcaption></figure><figure class="fig"><img src="assets/cad_render_wheel.jpg" alt="Closed wheel, every joint at 40°" loading="lazy"><figcaption>Closed wheel, every joint at 40°</figcaption></figure></div>
+<section class="prose"><p>You print nine parts: seven links, a tail and a head. Each one carries an MG90S servo in a cradle at the front and a fork at the rear that the previous servo drives. Eighteen O-rings make the treads, two magnets in the tail and two steel screws in the head make the latch that closes the strap into a wheel, and the electronics tape onto the backs.</p>
+<p>Two choices shape every part. First, each link is two blocks joined by a 1.0 mm PETG leaf spring. Each link gives about 7° at a firm push, so the strap has some give built into every segment. Second, the design works with slop. Hobby servos have backlash and clones vary, so the servo sits in its cradle with about 0.3 mm of play, the pivot arm swings free on its screw, and a printed end stop at 89.5° catches each joint on plastic before backlash and leaf flex can push it into the electronics. The simulation is trained with the same hard stop.</p>
+<p>The parts are new designs, so print the test coupon first and check it against your servos before you print the set.</p>
+<hr />
+<h2 id="what-youre-printing">What you're printing</h2>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Part (<code>cad/out/</code>)</th>
+<th>Qty</th>
+<th>Segment</th>
+<th>Printed mass</th>
+<th>Print time (est.)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Part (cad/out/)"><code>coupon.stl</code></td>
+<td data-label="Qty">(1)</td>
+<td data-label="Segment"><strong>Print first.</strong> One cradle and one fork, to check servo and horn fit.</td>
+<td data-label="Printed mass">7.5 g</td>
+<td data-label="Print time (est.)">~30 min</td>
+</tr>
+<tr>
+<td data-label="Part (cad/out/)"><code>link.stl</code></td>
+<td data-label="Qty">4</td>
+<td data-label="Segment">s1, s2, s6, s7 (every link and the head also carry the +90° end-stop toe, see below)</td>
+<td data-label="Printed mass">14.4 g</td>
+<td data-label="Print time (est.)">~1 h each</td>
+</tr>
+<tr>
+<td data-label="Part (cad/out/)"><code>link_s3_battery.stl</code></td>
+<td data-label="Qty">1</td>
+<td data-label="Segment">s3: link + battery fence with two tie windows</td>
+<td data-label="Printed mass">16.2 g</td>
+<td data-label="Print time (est.)">~1 h 5 min</td>
+</tr>
+<tr>
+<td data-label="Part (cad/out/)"><code>link_s4_esp32.stl</code></td>
+<td data-label="Qty">1</td>
+<td data-label="Segment">s4: link + raised ESP32 pad (wire-channel walls raised to match)</td>
+<td data-label="Printed mass">15.2 g</td>
+<td data-label="Print time (est.)">~1 h</td>
+</tr>
+<tr>
+<td data-label="Part (cad/out/)"><code>link_s5_power.stl</code></td>
+<td data-label="Qty">1</td>
+<td data-label="Segment">s5: link with solid front crossbar, no channel (the power board covers it)</td>
+<td data-label="Printed mass">15.0 g</td>
+<td data-label="Print time (est.)">~1 h</td>
+</tr>
+<tr>
+<td data-label="Part (cad/out/)"><code>tail.stl</code></td>
+<td data-label="Qty">1</td>
+<td data-label="Segment">s0: cradle at the front; notches, magnets and a second pair of treads at the rear</td>
+<td data-label="Printed mass">19.5 g</td>
+<td data-label="Print time (est.)">~1 h 20 min</td>
+</tr>
+<tr>
+<td data-label="Part (cad/out/)"><code>head.stl</code></td>
+<td data-label="Qty">1</td>
+<td data-label="Segment">s8: fork at the rear, two latch-pin forks at the front</td>
+<td data-label="Printed mass">15.8 g</td>
+<td data-label="Print time (est.)">~1 h 5 min</td>
+</tr>
+</tbody>
+</table></div>
+<p>The full set is about <strong>139 g</strong> plus the coupon, against a 130 g budget. Expect <strong>9 to 10 h</strong> of printing. The masses are solid volume × 1.27 g/cm³ × 0.55 (PETG, 3 walls, 15 % infill), and the times come from mass at about 14 g/h, so weigh your first link and trust your slicer's time over these.</p>
+<p>The end-stop toe adds 0.8 g to each link. The tail is the heaviest part because of the second pair of O-ring treads under the latch corner, which matches the tread <code>k0</code> in the sim. The sim's <code>s0</code> mass of 30 g assumes a 12.5 g tail print; with this tail it should be about <strong>36 g</strong>.</p>
+<h3 id="print-settings">Print settings</h3>
+<p>Print every part <strong>belly down exactly as exported</strong> (the STL's lowest face, z = -8, goes on the bed), with <strong>no supports and no brim</strong>.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Material</td>
+<td>PETG. Not PLA: the leaf springs fatigue in PLA.</td>
+</tr>
+<tr>
+<td>Nozzle and layers</td>
+<td>0.4 mm nozzle, 0.2 mm layers, 3 walls, 4 top and 4 bottom layers, 15 % gyroid</td>
+</tr>
+<tr>
+<td>First layer</td>
+<td>Turn elephant-foot compensation on (0.1 to 0.15 mm), or the 1.0 mm leaf spring prints thicker and stiffer. Stiffness goes with thickness cubed: 0.9 mm gives 0.90 N·m/rad and 1.1 mm gives 1.65.</td>
+</tr>
+<tr>
+<td>Cooling</td>
+<td>30 to 50 % fan. Bridges are 3 mm or shorter.</td>
+</tr>
+</tbody>
+</table></div>
+<p>The lower arcs of the R6.5 groove core and the R8 tread flange (|y| &gt; 33) print as small droops near the bed. They are round on purpose because the O-ring needs them round. Two features are thinner than 0.8 mm by design and your slicer will drop them: the 0.2 mm wedge where the latch-wire groove breaks into the pin seat, and a 0.15 mm² sliver where the rear-tab slot cuts the leaf fillet. Both are fine.</p>
+<p>Print two spare links. Fatigue life of the leaf at 14 to 16 MPa in printed PETG is unknown.</p>
+<hr />
+<h2 id="print-the-test-coupon-first">Print the test coupon first</h2>
+<p>The cradle and the horn recess are sized for a datasheet MG90S and a 1.7 mm horn plate. Clones vary by ±0.3 to 0.5 mm, and horns vary more. The coupon (one cradle and one fork, 30 minutes) tells you whether your servos fit before you commit 9 hours of printing.</p>
+<p>Before printing anything, measure one servo with calipers. <strong>The four numbers that matter most:</strong></p>
+<ol>
+<li>case thickness</li>
+<li>tab underside height</li>
+<li>spline top height</li>
+<li>horn plate thickness and length</li>
+</ol>
+<p>Compare them with the values in <a href="#mg90s-parameters">MG90S parameters</a> below. If your horn is longer than 15.5 mm from the centre to the tip, cut it down with flush cutters (the recess runs into the crossbar).</p>
+<p>Then print the coupon. The servo should drop in with about 0.3 mm of play all round, and the horn should press into the fork recess and stay there. If it doesn't, edit the parameters in <code>cad/make_parts.py</code> and regenerate the parts (see <a href="#regenerating-the-parts">Regenerating the parts</a>). Expect one reprint.</p>
+<hr />
+<h2 id="one-joint-step-by-step">One joint, step by step</h2>
+<p>A joint is the servo in link N's front cradle, driving link N+1's rear fork.</p>
+<ul>
+<li><strong>Horn arm (+y):</strong> the horn presses into a recess on the arm's inner face.</li>
+<li><strong>Pivot arm (−y):</strong> turns on the servo's own 2 mm screw, which threads into a boss on link N.</li>
+</ul>
+<p><img alt="exploded joint" src="assets/cad_render_joint_exploded.jpg" /></p>
+<ol>
+<li><strong>Centre the servo.</strong> Command 1500 µs (see the <a href="build.html">Build plan</a>) and leave it there.</li>
+<li><strong>Horn into the fork.</strong> Press the single-arm horn into the recess on the inner face of link N+1's horn arm, with the hub facing the servo side. A small drop of superglue on the plate edge is fine. The fork holds the horn axially once assembled, so the glue only stops it rattling.</li>
+<li><strong>Servo onto the horn, outside the cradle.</strong> Hold the servo between the two fork arms and slide the spline into the horn hub along the shaft axis. There is 1.2 mm to spare past the pivot arm, so it goes in square. Choose the spline tooth that makes link N+1 point straight along the servo body at 1500 µs. One tooth off is 15°. Drive the horn screw through the hole in the horn arm.</li>
+<li><strong>Drop the servo, with link N+1 hanging on it, into link N's cradle from the back.</strong>
+   - The rear tab goes into the slot in the front crossbar, and the front tab rests on the post.
+   - The pivot arm goes down outside the pivot boss, and the horn arm goes outside the floor.
+   - The lead leaves the rear of the servo into the leaf-spring gap.</li>
+<li><strong>Pivot screw.</strong> Drive one of the servo's 2 mm mounting screws through the hole in link N's −y cheek. It goes through the pivot arm and into the boss pilot. <strong>Stop as soon as the head touches the arm, then back off a quarter turn.</strong> The arm must swing freely; it has 0.15 mm of axial play. Tighten it and you add friction the sim does not have.</li>
+<li><strong>Zip tie (2.5 mm):</strong>
+   - Thread it through the slot in the floor just past the servo top (the shaft end), tail end first.
+   - Run it along the recess under the belly, up the outside of the wall at the servo's bottom end, and back over the servo.
+   - Pull it tight with the <strong>ratchet head at the shaft end</strong> (+y, below the horn), never on top. On top, it sits under the boards on s4 and s5.
+   - Cut the tail flush. The tie sits 0.35 mm proud of the belly and the treads stand 1.0 mm proud, so it clears the desk.</li>
+<li><strong>Check by hand.</strong> Bend the joint down to −69°: nothing should touch except the horn turning. Then <strong>fold the joint up by hand: it must stop on plastic at 90° with the electronics untouched.</strong> The two toes on the next link land flat on the tops of this link's cheeks. Then press the two halves of each link together: the leaf spring should give about 7° at a firm push.</li>
+</ol>
+<p><strong>Measure the leaf spring on your first link.</strong> Hang 150 g at 100 mm from the joint and read the angle. 7° is on target. Printed PETG ranges from 1.8 to 2.2 GPa and layer adhesion matters, so your number can differ from the design value.</p>
+<p><strong>Check the end stop on your first printed pair.</strong> It must land on the cheek tops at 89° to 90°, and the 45° toe must not crack when the servo stalls against it.</p>
+<hr />
+<h2 id="the-other-joints-and-the-o-rings">The other joints and the O-rings</h2>
+<p>Build the remaining joints the same way.</p>
+<ul>
+<li>The horn screw and the pivot screw can both be reached later with a 3 mm screwdriver through the holes in link N's cheeks, so you can re-index a horn without taking the joint apart.</li>
+<li>On s4 and s5 the board sits over the servo. Swapping that servo means peeling the board off first.</li>
+<li>Leave a 5 mm S-loop in each servo lead where it crosses its own leaf-spring gap, so the lead does not stiffen the spring.</li>
+</ul>
+<p><strong>O-rings: 18 of them, 18 × 2.5 mm nitrile.</strong></p>
+<ul>
+<li>Two go on the front of every link s0 to s7, plus two on the rear of the tail. The head has none.</li>
+<li>Roll each one over the outer R8 flange into the groove. That is a 24 % momentary stretch, easy by hand. Seated, it is stretched 7.6 % on the inside and stands 0.92 mm proud of the plastic around the joint.</li>
+<li>Wipe the rings and the desk with isopropyl before a rolling run.</li>
+</ul>
+<hr />
+<h2 id="the-magnet-latch">The magnet latch</h2>
+<p>The tail carries two magnets in notches. The head carries two steel screws as latch pins. When the strap rolls up, the pins drop into the notches, the magnets pull them home, and each pin closes a sense circuit so the robot knows it has become a wheel.</p>
+<p><img alt="latch" src="assets/cad_render_latch.jpg" /></p>
+<p><strong>Magnets (two 6 × 3 mm discs, in the tail):</strong></p>
+<ol>
+<li>Check polarity first. Stack both magnets on a screwdriver and mark the outward face of each, so both point the same way.</li>
+<li>Put a drop of superglue in each pocket and push the magnet down from the back.</li>
+<li>0.8 mm of plastic separates each magnet from the seat. With the pin pulled home, the gap from pin to magnet is 0.9 mm.</li>
+</ol>
+<p><strong>Latch pins (two M3 × 25 zinc-plated steel screws, in the head; not stainless):</strong></p>
+<ul>
+<li>Solder a wire to each screw head before driving it in: left pin to GPIO 27, right pin to GND (see <a href="electronics.html">Electronics</a>).</li>
+<li>Drive each one from outside through the outer fork and the inner fork. They self-tap into a 2.6 mm hole. The pan head sinks flush into the outer fork, and the tip ends 5 mm from the centreline.</li>
+</ul>
+<p><strong>Latch-sense wires (in the tail):</strong></p>
+<ul>
+<li>Lay a bare 0.5 mm tinned copper wire in the groove across the lower front of each pin seat, then up the groove on the outer face of the block. Glue the ends on the back.</li>
+<li>Join the two notch wires with an insulated wire across the tail's back. Use one wire per notch: a single wire straight across the middle would pass through the head's inner forks.</li>
+<li>When a pin is pulled home by the magnet it bears on its wire. The wire stands 0.15 mm proud, which gives a 0.07 mm overlap with the pin, so test continuity on your build.</li>
+</ul>
+<p><strong>Pull-off test:</strong> follow the step in the <a href="build.html">Build plan</a>. The magnet pull through 0.8 mm of plastic plus the 0.25 mm gap is an estimate, so this test is where you find out. If the latch is too strong, shim each magnet deeper with paper before gluing. The seat funnel opens at 45° to ±4.5 mm, so the pin is steered in from that far off-axis. Watch the first few closures: the fit check covers the seated pose, and the swing into the funnel is something you confirm on the real robot.</p>
+<hr />
+<h2 id="where-each-board-mounts">Where each board mounts</h2>
+<p>Everything sits on the back, which is the inside of the wheel. Use 1 mm foam tape, zip ties and hot glue, with no extra screws.</p>
+<p><strong>No board may touch both halves of a link.</strong> Fix each one to one block, the front or the rear, and keep it at least 2.5 mm clear of the other, checked with the leaf flexed ±10°. Never tape wires across a leaf spring.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Segment</th>
+<th>What</th>
+<th>How</th>
+<th>Where (link frame, mm)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Segment">s3</td>
+<td data-label="What">2S 450 to 500 mAh LiPo (46 × 25 × 12.5 assumed)</td>
+<td data-label="How"><strong>Stood on its long edge</strong>, foam-taped to the front face of the fence on the rear crossbar. Two zip ties go through the fence windows, under the pack and over the top. The lead leaves the pack's −y end.</td>
+<td data-label="Where (link frame, mm)">x 16.1 to 28.6, y −39.6 to 6.4 (overhangs the −y side), z 11 to 36</td>
+</tr>
+<tr>
+<td data-label="Segment">s3</td>
+<td data-label="What">XT30 pair and F1 polyfuse (in heat-shrink)</td>
+<td data-label="How"><strong>Lying flat on top of the standing pack</strong>, along y, taped to it</td>
+<td data-label="Where (link frame, mm)">x 16.1 to 28.6, y −33 to −8, z 36 to 42</td>
+</tr>
+<tr>
+<td data-label="Segment">s4</td>
+<td data-label="What">ESP32 DevKit 30-pin</td>
+<td data-label="How">Header pins <strong>cut flush under the black spacers</strong>, with wires soldered to the pin stubs on top. Foam-taped (PCB underside) onto the pad and channel walls. Fixed to the front block; the rear spacer row overhangs the rear block 2.6 mm clear. USB end at −y, module at +y.</td>
+<td data-label="Where (link frame, mm)">x 10.8 to 39.1, y −17.5 to 34, PCB underside z 13.1</td>
+</tr>
+<tr>
+<td data-label="Segment">s4</td>
+<td data-label="What">GY-521 (mid IMU)</td>
+<td data-label="How">Foam-taped on the ESP32 module's metal can, toward its rear end. X toward the head and Z out of the back, as the sim assumes. Off the antenna end.</td>
+<td data-label="Where (link frame, mm)">x 11.3 to 32.5, y 6.6 to 23.0, top z 22.0</td>
+</tr>
+<tr>
+<td data-label="Segment">s4</td>
+<td data-label="What">Battery pair (22 AWG red/black, twisted)</td>
+<td data-label="How">Taped along the −y edge of the front block, clear of the ESP32</td>
+<td data-label="Where (link frame, mm)">x 27.6 to 40, y −31 to −26, z ≤ 10.6</td>
+</tr>
+<tr>
+<td data-label="Segment">s5</td>
+<td data-label="What">Power board, 66 × 20.5 mm (26 × 8 holes), on 1 mm foam on the front block</td>
+<td data-label="How">Column 1 at y −31.7, column 26 at y +31.8. Row A faces s4. Layout per <code>perfboard.svg</code>.</td>
+<td data-label="Where (link frame, mm)">x 19.0 to 39.5, board top z 10.6</td>
+</tr>
+<tr>
+<td data-label="Segment">s5</td>
+<td data-label="What">Two Mini560 (29 × 18 × 5.4), stacked, 18 mm side along the body</td>
+<td data-label="How">Columns 2 to 12; U3 on the board, U1 on top of U3</td>
+<td data-label="Where (link frame, mm)">y −30.5 to −1.5, top z 23.4</td>
+</tr>
+<tr>
+<td data-label="Segment">s5</td>
+<td data-label="What">INA219 flat (no screw terminal), with C2 (<strong>220 µF</strong>, 6.3 × 11) lying on it</td>
+<td data-label="How">Columns 14 to 22</td>
+<td data-label="Where (link frame, mm)">y 0 to 23, top z 21</td>
+</tr>
+<tr>
+<td data-label="Segment">s5</td>
+<td data-label="What">R1/R2 standing</td>
+<td data-label="How">Column 1, rows C to F</td>
+<td data-label="Where (link frame, mm)">top z 20.5</td>
+</tr>
+<tr>
+<td data-label="Segment">s5</td>
+<td data-label="What"><strong>3 × 8 servo header J1</strong> with the eight plugs</td>
+<td data-label="How">Columns 24 to 26, rows A to H</td>
+<td data-label="Where (link frame, mm)">y 24.4 to 33, plug tops z 27.1, wires bent flat by z 29</td>
+</tr>
+<tr>
+<td data-label="Segment">s8</td>
+<td data-label="What">GY-521 (head IMU)</td>
+<td data-label="How">Foam-taped on the head's front block</td>
+<td data-label="Where (link frame, mm)">x 21.6 to 38, y ±10.6</td>
+</tr>
+<tr>
+<td data-label="Segment">s0 to s7</td>
+<td data-label="What">Servo leads</td>
+<td data-label="How">Open channel with snap lips on each front crossbar at y 24.5 to 31.5: x 27.5 to 31 on s3 and s4, x 30 to 34 on the other links. On the plain links the top rear edge of the front crossbar is chamfered 2.4 mm at y 23.4 to 33, which gives s5's servo-plug wires room at j6. A slack loop of 15 mm crosses each joint. The leads never cross a leaf gap tight.</td>
+<td data-label="Where (link frame, mm)"></td>
+</tr>
+</tbody>
+</table></div>
+<p>Wiring and soldering for these boards are on the <a href="electronics.html">Electronics</a> page.</p>
+<h3 id="why-it-is-laid-out-like-this">Why it is laid out like this</h3>
+<p>The back is the inside of the curl. At +90°, a neighbouring link stands up as a wall at x = 8 and x = 40, so each back has a 32 mm window. Everything above is placed to fit that window with the joints folded.</p>
+<ul>
+<li><strong>Battery standing up.</strong> A pack lying flat (25 mm along the body) on s3 cannot share the window with the ESP32 on s4 when j4 is at +90°. Standing on edge, it takes 12.5 mm.</li>
+<li><strong>Power board 20.5 mm deep along the body (x 19.0 to 39.5).</strong> It has to clear the ESP32 on s4 when j5 is at +90° and s6 when j6 is at +90°.</li>
+<li><strong>Mid IMU at the rear of the module can, kept below y 23.8.</strong> That keeps it clear of the battery's y band when j4 is at +90°, the INA219 at j5 +92°, and the servo-plug wires at j5 +90°.</li>
+<li><strong>XT30 and fuse on top of the pack, not on the s3 front block.</strong> The front-block spot (x 29 to 39, y −33 to −8) lies inside the ESP32's y band, so it is hit from j4 = 75°. The battery would also hit it as s3's leaf flexes. If you see the front-block position anywhere else in the docs, use the on-top position given here.</li>
+<li><strong>Wire channel on s6 (and the other plain links) at x 30 to 34.</strong> At x 27.5 to 31 it would meet the servo-plug wires (z 29) on s5 at j6 = 87°.</li>
+</ul>
+<h3 id="keep-the-stacks-low">Keep the stacks low</h3>
+<p>The electronics clear the end stop by only 2.5° to 3° on j4 to j6 (rigid links). Anything taller than the dimensions above eats that margin:</p>
+<ul>
+<li><strong>Battery size.</strong> Packs sold as 2S 500 mAh range from 47 × 25 × 10 to 56 × 28 × 13. Anything thicker than 12.5 mm in x moves the front of the battery past 28.6 mm and eats the j4 margin. A longer pack overhangs further at −y, which is fine up to y = −40.</li>
+<li><strong>Foam tape.</strong> Real foam tape ranges from 0.8 to 1.6 mm. Thicker tape raises the s4 stack and costs about 2° of j4 margin per millimetre.</li>
+<li><strong>Servo wires.</strong> Keep the plug wires on s5 bent flat by z 29.</li>
+<li><strong>Wire bundles and hot glue.</strong> The bundle thickness in the channels, slack loops squashed inside the curl and hot glue are not in the model. The fit of the 45° snap lips on the wire channels is a best estimate too.</li>
+</ul>
+<p>After mounting, fold each joint to the stop by hand again and look at j4, j5 and j6.</p>
+<h3 id="servo-lead-lengths">Servo lead lengths</h3>
+<p>With the header on s5, the MG90S lead taken as 240 mm, and 15 mm of slack per joint crossed. Measure your leads; these numbers assume 240 mm and the routing above.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Servo</th>
+<th>In segment</th>
+<th>Length needed</th>
+<th>Extension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Servo">M1</td>
+<td data-label="In segment">s0</td>
+<td data-label="Length needed">387 mm</td>
+<td data-label="Extension"><strong>20 cm</strong> (53 mm spare)</td>
+</tr>
+<tr>
+<td data-label="Servo">M2</td>
+<td data-label="In segment">s1</td>
+<td data-label="Length needed">324 mm</td>
+<td data-label="Extension"><strong>15 cm</strong> (66 mm spare)</td>
+</tr>
+<tr>
+<td data-label="Servo">M3</td>
+<td data-label="In segment">s2</td>
+<td data-label="Length needed">261 mm</td>
+<td data-label="Extension"><strong>15 cm</strong> (129 mm spare)</td>
+</tr>
+<tr>
+<td data-label="Servo">M4 to M8</td>
+<td data-label="In segment">s3 to s7</td>
+<td data-label="Length needed">72 to 198 mm</td>
+<td data-label="Extension">none; at least 42 mm spare</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="design-reference">Design reference</h2>
+<details class="ref" id="regenerating-the-parts"><summary>Regenerating the parts</summary>
+<p>Everything on this page comes from <code>cad/</code> and can be regenerated. If your servo measurements differ from the parameters below, edit the top of <code>cad/make_parts.py</code>, rebuild, and re-run the fit check before printing.</p>
+<pre><code>cd cad
+python make_parts.py     # parts -&gt; out/*.stl, prints masses
+python check_fit.py      # all fit checks, PASS/FAIL table, out/check_fit.txt (about 25 s)
+python export.py         # out/assembled_*.glb/.stl and out/render_*.png
+</code></pre>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cad/make_parts.py</code></td>
+<td>The printed parts as parametric manifold3d CSG. Every MG90S-dependent number is at the top.</td>
+</tr>
+<tr>
+<td><code>cad/components.py</code></td>
+<td>Dummy solids of every bought part (MG90S, horn, ESP32, GY-521, INA219, Mini560, LiPo, capacitor, screws, magnet, O-ring) and where their numbers come from.</td>
+</tr>
+<tr>
+<td><code>cad/assembly.py</code></td>
+<td>Where every bought part sits on every link, and the joint-chain maths.</td>
+</tr>
+<tr>
+<td><code>cad/check_fit.py</code></td>
+<td>The fit checks below.</td>
+</tr>
+<tr>
+<td><code>cad/export.py</code></td>
+<td>STL/GLB/PNG output.</td>
+</tr>
+<tr>
+<td><code>cad/out/</code></td>
+<td>Generated files. The printable parts live here; any older reference to <code>cad/*.stl</code> means these.</td>
+</tr>
+</tbody>
+</table></div>
+</details><details class="ref" id="mg90s-parameters"><summary>MG90S parameters</summary>
+<p>From the TowerPro-style table (A 32.5, B 22.8, C 28.4, D 12.4, E 32.1, F 18.5) read together with the Adafruit/TowerPro drawing (32.5 across the tabs, 35.5 tall with the horn). Heights are from the case bottom.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>Parameter (<code>make_parts.py</code>)</th>
+<th>Value</th>
+<th>Clone spread seen</th>
+<th>What it drives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_LEN</code> case length</td>
+<td data-label="Value">22.8</td>
+<td data-label="Clone spread seen">22.2 to 23.0</td>
+<td data-label="What it drives">pocket length</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_THK</code> case thickness</td>
+<td data-label="Value">12.2 (12.4 in one table)</td>
+<td data-label="Clone spread seen">11.8 to 12.6</td>
+<td data-label="What it drives">pocket width; floor is only 1.65 mm under it</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_H</code> case top</td>
+<td data-label="Value">22.7</td>
+<td data-label="Clone spread seen">±0.5</td>
+<td data-label="What it drives">pocket</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_SHAFT</code> shaft to front end</td>
+<td data-label="Value">6.0</td>
+<td data-label="Clone spread seen">±0.3</td>
+<td data-label="What it drives">where the case sits relative to the joint axis</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_TAB_Y</code> tab underside</td>
+<td data-label="Value">16.0 (F 18.5 minus 2.5)</td>
+<td data-label="Clone spread seen">±0.5</td>
+<td data-label="What it drives">front post height, rear tab slot</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_TAB_L</code> tab overhang</td>
+<td data-label="Value">4.85</td>
+<td data-label="Clone spread seen">4.5 to 5.0</td>
+<td data-label="What it drives">tab slot length</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)"><code>S_SPLINE_TOP</code> spline top</td>
+<td data-label="Value">32.1</td>
+<td data-label="Clone spread seen">±0.5</td>
+<td data-label="What it drives"><strong>where the horn arm sits (<code>HORN_IN</code>)</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)">gear hump / boss</td>
+<td data-label="Value">R6.1 to 26.7, boss R3.6 to 28.4</td>
+<td data-label="Clone spread seen">±0.5</td>
+<td data-label="What it drives">must stay under the horn hub (0.5 mm gap)</td>
+</tr>
+<tr>
+<td data-label="Parameter (make_parts.py)">horn plate (<code>HORN_T</code>, <code>HORN_W0</code>, <code>HORN_W1</code>, <code>HORN_LEN</code>)</td>
+<td data-label="Value">1.7 thick, 7.0 to 4.0 wide, 15.5 from centre to tip</td>
+<td data-label="Clone spread seen">horns differ a lot</td>
+<td data-label="What it drives">horn recess in the fork</td>
+</tr>
+</tbody>
+</table></div>
+<p>The pocket clearance is 0.25 mm.</p>
+</details><details class="ref" id="leaf-spring-and-stress"><summary>Leaf spring and stress</summary>
+<ul>
+<li>k = 1.24 N·m/rad from beam theory (E 2.1 GPa, 10 mm leaf with 1 mm root fillets). The root fillets lower the stress concentration at the root.</li>
+<li>At 0.15 N·m (servo stall): 6.9° and 13.6 MPa nominal, about 16 MPa at the fillet.</li>
+<li>Stiffness goes with thickness cubed: 0.9 mm gives 0.90 N·m/rad, 1.1 mm gives 1.65. This is why elephant-foot compensation matters.</li>
+<li>Printed PETG ranges from 1.8 to 2.2 GPa, so measure yours with the 150 g at 100 mm test (7° is on target).</li>
+<li>Fatigue at 14 to 16 MPa is unknown for printed PETG. Keep spares.</li>
+</ul>
+</details><details class="ref" id="the-90-end-stop"><summary>The +90° end stop</summary>
+<p>A toe on each side of every link's rear crossbar (|y| 26 to 33, face at x = 7.95, 45° underside) lands flat on the previous link's cheek tops (x 40 to 43, kept solid). Contact is at 89.5°, about 21 mm² per side, plastic on plastic, on every joint.</p>
+<p>The MG90S has no hard stop of its own, and backlash plus leaf flex let loads push a joint 10° or more past its command. With soft joint limits in the sim, the startle behaviour flung j6 to 97° and hit the s5 plugs. The printed stop exists to catch that.</p>
+<p><strong>Servo command limit: +86° (1.50 rad).</strong> The printed stop is at 89.5°, so 4° of backlash still lands on plastic, not on electronics.</p>
+<p><strong>What the stop does not cover.</strong> It limits the servo-driven rotation, between this link's front block and the next link's rear block. The first electronics contacts on j4 to j6 involve the next link's <em>front</em> block:</p>
+<ul>
+<li>j4: the s4 ESP32 against the s3 channel</li>
+<li>j5: the s5 plugs against the s4 ESP32</li>
+<li>j6: s6's front crossbar against the s5 plug wires</li>
+</ul>
+<p>The next link's leaf spring can still swing that front block about 2.5° to 3° past the stop. That takes roughly 0.05 to 0.065 N·m on that leaf, against 0.15 N·m at servo stall. So a hard knock or a stalled curl can still press on those parts. The proper fix would be lower stacks on s4 and s5, not a stiffer leaf. See <a href="risks.html">Limits</a>.</p>
+</details><details class="ref" id="design-details"><summary>Design details</summary>
+<p>These are the features that make the parts assemble, print without supports and behave like the sim:</p>
+<ul>
+<li><strong>Horn arm position.</strong> The arm's inner face is derived from <code>S_SPLINE_TOP</code> (<code>HORN_IN</code> = 14.5), so the MG90S spline (which reaches y = 15.1) clears the 2.2 mm hole in the horn arm. The horn plate sits in a recess with a 45° roof.</li>
+<li><strong>Horn recess</strong> is cut after the fork is joined to the crossbar, so the horn tip is never buried in the crossbar.</li>
+<li><strong>Screwdriver access.</strong> A screw-head and driver hole runs through the −y cheek and tread to the pivot screw, and the horn-screw hole through the +y cheek is 4.8 mm.</li>
+<li><strong>Zip-tie lane</strong> runs behind the MG90S gear humps, with the floor slot past the idler hump. The tie recess is 0.75 mm, leaving a 0.9 mm floor.</li>
+<li><strong>Pivot boss</strong> runs down to the bed.</li>
+<li><strong>Head latch forks</strong> run to the bed with a 45° front.</li>
+<li><strong>Tail notch</strong> has a 45° funnel roof.</li>
+<li><strong>Round knuckles</strong> of the arms and cheeks have a 45° chamfer on their bottom quarter.</li>
+<li><strong>Horizontal holes</strong> are all teardrops.</li>
+<li><strong>Leaf spring</strong> is 10 mm long with root fillets: 1.24 N·m/rad.</li>
+<li><strong>Rear tread pair on the tail</strong> under the latch corner, matching the sim's <code>k0</code>, with cheeks kept outside the head fork's swept zone.</li>
+<li><strong>One latch-sense wire per notch</strong>, joined across the back, so no wire runs through the head's inner forks.</li>
+<li><strong>Mounts</strong> for the battery, boards and IMUs, plus wire channels: the s3 fence, the s4 pad and the link variants above.</li>
+<li><strong>+90° end stop</strong> on every joint, described above.</li>
+</ul>
+</details><details class="ref" id="fit-check-results"><summary>Fit-check results</summary>
+<p><code>python check_fit.py</code> checks the printed parts against dummy bought parts built from datasheet numbers (full log in <code>cad/out/check_fit.txt</code>). Interference is the boolean intersection volume; anything under 0.5 mm³ counts as zero. All checks pass.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>What it confirms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a servo in cradle</td>
+<td>0.0 mm³ servo/link, tie/link, tie/servo. The servo is retained in all six directions with ≤ 0.30 mm play: floor, walls, rear-tab slot, front post, tie (0.05 mm). Pitch about the shaft is stopped by the floor and tie. Tie slot 3.0 × 2.2 mm for a 2.5 × 1.1 tie.</td>
+</tr>
+<tr>
+<td>a2 screwdriver paths</td>
+<td>A 3 mm driver and screw head reach the horn screw (+y) and pivot screw (−y) through the cheeks: 0.00 mm³.</td>
+</tr>
+<tr>
+<td>b joint sweep, plain pair</td>
+<td>First plastic contact at <strong>89.5°</strong>, the end stop (toe on cheek, 88.5° to 90° required). Nothing touches from −69° to +88°; minimum gap 0.36 mm. Horn in recess 0.0 mm³.</td>
+</tr>
+<tr>
+<td>c latch</td>
+<td>No interference over a 0° to 90° corner angle. 0.25 mm pin play. The pin bears on the sense wire when home (0.49 mm³ overlap).</td>
+</tr>
+<tr>
+<td>d joints with payloads</td>
+<td>All eight joints (tail–s1 through s7–head), with the final electronics fitted, first touch at 89.5° on the plastic stop, with nothing else touching.</td>
+</tr>
+<tr>
+<td>d1b electronics margin</td>
+<td>Electronics first contact − 90°, rigid links: j1 none, j2 none, j3 +7.5, <strong>j4 +2.5, j5 +3.0, j6 +2.5</strong>, j7 none, j8 +54. Below −69°: nothing before −120°.</td>
+</tr>
+<tr>
+<td>d wheel + strap</td>
+<td>Closed 9-gon (closure error 0.000 mm) and flat strap, everything fitted: no interference. Free height above each back in the closed wheel: 19 to 97 mm.</td>
+</tr>
+<tr>
+<td>d3 replay of the simulated act</td>
+<td>The real parts driven through the joint angles in <code>visual/traj.json</code>, recorded from the sim with the hard +90° stop and the policies trained on it: crawl, learned bite, learned roll and startle, no interference in any frame. See <a href="learning.html">Simulation and RL</a>.</td>
+</tr>
+<tr>
+<td>e O-ring</td>
+<td>7.6 % stretch on the inside, 0.92 mm proud, 24 % to pass the flange.</td>
+</tr>
+<tr>
+<td>f leaf spring</td>
+<td>k = 1.24 N·m/rad; 6.9° and 13.6 MPa nominal (about 16 at the fillet) at 0.15 N·m. Nothing bridges the spring: each link splits into 2 pieces with the leaf removed, and nothing touches across the gap at ±10° of flex.</td>
+</tr>
+<tr>
+<td>g printability</td>
+<td>No overhang beyond 50° above the first 2 mm. Bridges ≤ 3.0 mm. No wall or plate under 0.8 mm except the two by-design spots under <a href="#print-settings">Print settings</a>.</td>
+</tr>
+<tr>
+<td>h lead routing</td>
+<td>M1 20 cm, M2 and M3 15 cm extensions; the rest reach.</td>
+</tr>
+</tbody>
+</table></div>
+</details><details class="ref" id="what-to-confirm-on-your-first-build"><summary>What to confirm on your first build</summary>
+<p>The fit check covers geometry. These come down to your parts and your print:</p>
+<ol>
+<li><strong>Servo and horn fit.</strong> Print the coupon.</li>
+<li><strong>Leaf stiffness.</strong> 150 g at 100 mm should give about 7°.</li>
+<li><strong>End stop.</strong> Lands at 89° to 90° on the cheek tops, toe survives a stall.</li>
+<li><strong>Latch.</strong> Pull-off strength, sense-wire contact, and the pin finding the funnel as it swings in.</li>
+<li><strong>Electronics margins on j4 to j6.</strong> Fold each joint to the stop with everything mounted.</li>
+<li><strong>Lead lengths.</strong> Measure your servo leads against the 240 mm assumed above.</li>
+</ol></section></details>
+<div class="pager"><a href="parts.html">&larr; Parts</a><a href="electronics.html">Electronics &rarr;</a></div>
+</main></div>
+<footer><div class="wrap">Ouro is an open robot project from <a href="https://buildrobotz.com/">BuildRobotz</a>. The design was generated with AI and has not yet been built or tested on hardware; performance figures are MuJoCo simulation results. Build at your own risk. Code, CAD and firmware: <a href="https://github.com/buildrobotz/ouro-robot">github.com/buildrobotz/ouro-robot</a> (code MIT, docs and CAD CC BY-SA 4.0).<br>
+<a href="https://buildrobotz.com/robots/">More robots to build</a> · <a href="https://buildrobotz.com/">Learn robotics with BuildRobotz</a></div></footer>
+<script>(function(){var a=document.querySelector('nav [aria-current]');if(a&&a.parentNode.scrollWidth>a.parentNode.clientWidth)a.parentNode.scrollLeft=a.offsetLeft-a.parentNode.clientWidth/2+a.offsetWidth/2;
+function op(){var t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var e=t;e;e=e.parentElement)if(e.tagName==='DETAILS')e.open=true;if(t)t.scrollIntoView();}
+addEventListener('hashchange',op);op();})();</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="assets/viewer.js"></script>
+</body></html>

@@ -1,0 +1,166 @@
+<title>Ouro Robot Motion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a maker's cutting mat. One wide stage (the robot replay) on top, then the three-frame strip, then anatomy. */
+:root{
+  --mat:#dfe9e3; --mat-line:#c3d3ca; --surface:#f3f7f4; --ink:#16241d; --muted:#557064;
+  --link-a:#e8641b; --link-b:#f2b632; --rubber:#1d2622; --latch:#c8283c; --ok:#1f8a5b; --rule:#b4c7bc;
+  --display:"Bricolage Grotesque","Arial Narrow",sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --mat:#12281f; --mat-line:#1d3a2d; --surface:#0c1d16; --ink:#e6f0ea; --muted:#8fae9f;
+  --link-a:#f0762f; --link-b:#f5c24a; --rubber:#050a08; --latch:#ef5568; --ok:#4cc38c; --rule:#2b4a3b; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --mat:#12281f; --mat-line:#1d3a2d; --surface:#0c1d16; --ink:#e6f0ea; --muted:#8fae9f;
+  --link-a:#f0762f; --link-b:#f5c24a; --rubber:#050a08; --latch:#ef5568; --ok:#4cc38c; --rule:#2b4a3b; color-scheme:dark }
+body{background:var(--surface);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,7vw,4.2rem);line-height:.95;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h2{font-family:var(--display);font-weight:800;font-size:1.5rem;margin:0 0 4px;text-wrap:balance}
+p{margin:0;max-width:65ch}
+.lede{font-size:1.1rem;color:var(--muted);margin-top:12px}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.stage{background:var(--mat);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+canvas{display:block;width:100%;height:auto}
+.bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:10px 12px;border-top:1px solid var(--rule);background:var(--surface)}
+button{font:500 .85rem var(--mono);color:var(--ink);background:transparent;border:1px solid var(--rule);border-radius:4px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--ink)} button:focus-visible,input:focus-visible{outline:2px solid var(--link-a);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+#play{min-width:74px;background:var(--link-a);border-color:var(--link-a);color:#fff}
+input[type=range]{flex:1 1 180px;min-width:0;accent-color:var(--link-a)}
+.read{font-family:var(--mono);font-size:.8rem;font-variant-numeric:tabular-nums;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+.read b{color:var(--ink);font-weight:500}
+.phases{display:flex;flex-wrap:wrap;gap:8px}
+.cap{font-size:.95rem;color:var(--muted);padding:10px 12px 0}
+.now{font-family:var(--display);font-weight:800;font-size:1.15rem;padding:12px 12px 0}
+.film{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.film figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.film img{width:100%;border-radius:4px;border:1px solid var(--rule);display:block}
+.film figcaption{font-size:.9rem;color:var(--muted)} .film figcaption b{color:var(--ink);font-family:var(--mono);font-weight:500;font-size:.8rem}
+.anat{overflow-x:auto;background:var(--mat);border:1px solid var(--rule);border-radius:6px}
+.anat svg{display:block;min-width:720px;width:100%;height:auto}
+.anat text{font-family:var(--mono);font-size:11px;fill:var(--ink)} .anat .dim{fill:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border-top:1px solid var(--rule)}
+.facts div{padding:12px 12px 12px 0;border-bottom:1px solid var(--rule)}
+.facts dt{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.facts dd{margin:2px 0 0;font-family:var(--display);font-weight:800;font-size:1.35rem;font-variant-numeric:tabular-nums}
+dl{margin:0}
+@media (max-width:640px){.film{grid-template-columns:1fr}}
+</style>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Desktop robot project · 8 hobby servos · MuJoCo replay</div>
+    <h1>Ouro, the worm that bites its tail and rolls away</h1>
+    <p class="lede">A flat strap of nine links lies on the desk. It crawls like a caterpillar, rolls itself up from both ends, snaps its head onto its tail with magnets, and becomes a wheel. Tap it and it bursts open. Everything below is a replay of the MuJoCo simulation, not a drawing of what it might do.</p>
+  </header>
+
+  <section>
+    <div class="stage">
+      <canvas id="cv" width="1040" height="420" role="img" aria-label="Side view replay of the robot crawling, biting its tail, rolling as a wheel and bursting open"></canvas>
+      <div class="now" id="now"></div>
+      <p class="cap" id="cap"></p>
+      <div class="bar">
+        <button id="play" type="button">Pause</button>
+        <input id="scrub" type="range" min="0" max="100" value="0" aria-label="Time">
+        <div class="read"><span>t <b id="rt">0.0</b> s</span><span>servo current <b id="ra">0.0</b> A</span><span>magnet latch <b id="rl">open</b></span></div>
+      </div>
+      <div class="bar"><div class="phases" id="phases"></div><button id="slow" type="button" aria-pressed="false">Half speed</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The surprising moment, in three frames</h2>
+    <p>MuJoCo renders of the same run. The strap rolls up tips first, so no servo ever lifts more than two links.</p>
+    <div class="film" style="margin-top:14px">__FILM__</div>
+  </section>
+
+  <section>
+    <h2>What it is made of</h2>
+    <p>Top view, lying flat. Every joint has the same axis, so the whole robot bends in one plane and the 80 mm width keeps it from falling over.</p>
+    <div class="anat" style="margin-top:14px">
+    <svg viewBox="0 0 760 300" role="img" aria-label="Labelled top view of the robot">
+      <g id="links"></g>
+      <g stroke="var(--ink)" stroke-width="1" fill="none">
+        <path d="M62 96 V52"/><path d="M158 96 V40"/><path d="M302 120 V52"/><path d="M374 122 V40"/><path d="M446 122 V52"/><path d="M662 126 V40"/><path d="M704 150 H730 V224"/><path d="M230 204 V246"/><path d="M110 150 V258"/><path d="M518 204 V246"/>
+      </g>
+      <text x="20" y="46">tail cradle + 2 magnets</text>
+      <text x="120" y="34">MG90S servo, one per joint (8)</text>
+      <text x="262" y="46">2S battery</text>
+      <text x="340" y="34">ESP32 + IMU</text>
+      <text x="420" y="46">5 V bucks + current sensor</text>
+      <text x="596" y="34">head IMU + hall sensor</text>
+      <text x="640" y="238">head pin (steel)</text>
+      <text x="168" y="260">rubber-ringed knuckle: the only part that touches the desk</text>
+      <text x="40" y="272">1 mm printed leaf spring in every link</text>
+      <text x="470" y="260">all 8 axes parallel</text>
+      <text class="dim" x="20" y="292">48 mm pitch × 9 links = 432 mm long · 80 mm wide · 16 mm thick · closes into a 140 mm wheel</text>
+    </svg>
+    </div>
+    <dl class="facts" style="margin-top:18px">__FACTS__</dl>
+  </section>
+</div>
+<script>
+const DATA = __DATA__;
+const CAPS = __CAPS__;
+(function(){
+  const g = document.getElementById('links'); let s = '';
+  for (let i = 0; i < 9; i++) { const x = 40 + i * 72;
+    s += `<rect x="${x+6}" y="100" width="60" height="100" rx="4" fill="${i%2?'var(--link-b)':'var(--link-a)'}"/>`;
+    if (i < 8) s += `<rect x="${x+38}" y="132" width="26" height="36" fill="var(--rubber)" opacity=".55"/>`;
+    s += `<rect x="${x-3}" y="96" width="6" height="108" rx="3" fill="var(--rubber)"/>`;
+    if (i < 8) s += `<rect x="${x+8}" y="100" width="7" height="100" fill="var(--surface)" opacity=".5"/>`; }
+  s += `<rect x="${40+9*72-3}" y="96" width="6" height="108" rx="3" fill="var(--rubber)"/>`;
+  s += `<rect x="268" y="126" width="56" height="48" fill="var(--ok)"/><rect x="342" y="112" width="52" height="76" fill="var(--ok)"/><rect x="416" y="126" width="52" height="48" fill="var(--ok)"/>`;
+  s += `<circle cx="660" cy="132" r="9" fill="#fff"/><circle cx="660" cy="168" r="9" fill="#fff"/><circle cx="663" cy="132" r="4" fill="var(--rubber)"/><circle cx="663" cy="168" r="4" fill="var(--rubber)"/>`;
+  s += `<circle cx="44" cy="120" r="5" fill="var(--latch)"/><circle cx="44" cy="180" r="5" fill="var(--latch)"/>`;
+  g.innerHTML = s;
+})();
+(function(){
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const F = DATA.frames, N = F.length, dt = DATA.dt, marks = DATA.marks;
+  const scrub = document.getElementById('scrub'); scrub.max = N - 1;
+  const el = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let i = 0, playing = !matchMedia('(prefers-reduced-motion: reduce)').matches, speed = 1, camX = 0, last = 0, acc = 0;
+  const S = 1.9, GY = 360;                      // px per mm, ground line y
+  const ph = el('phases');
+  marks.forEach(([k, name], n) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = CAPS[name][0];
+    b.onclick = () => { i = k; acc = 0; draw(); }; b.id = 'ph' + n; ph.appendChild(b); });
+  function phaseAt(k){ let n = 0; marks.forEach((m, j) => { if (k >= m[0]) n = j; }); return n; }
+  function draw(){
+    const f = F[Math.min(i, N - 1)], P = f.p, W = cv.width, H = cv.height;
+    const cx = P.reduce((a, p) => a + p[0], 0) / P.length; camX += (cx - camX) * (playing ? 0.12 : 1);
+    const X = x => W / 2 + (x - camX) * S, Y = z => GY - z * S;
+    ctx.fillStyle = css('--mat'); ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = css('--mat-line'); ctx.lineWidth = 1; ctx.font = '11px "IBM Plex Mono", monospace'; ctx.fillStyle = css('--muted');
+    const x0 = Math.floor((camX - W / 2 / S) / 50) * 50;
+    for (let x = x0; x < camX + W / 2 / S + 50; x += 50) { ctx.beginPath(); ctx.moveTo(X(x), 0); ctx.lineTo(X(x), GY); ctx.stroke();
+      if (x % 100 === 0) ctx.fillText((x / 10) + ' cm', X(x) + 4, GY + 16); }
+    for (let z = 50; z < 200; z += 50) { ctx.beginPath(); ctx.moveTo(0, Y(z)); ctx.lineTo(W, Y(z)); ctx.stroke(); }
+    ctx.strokeStyle = css('--ink'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, GY + 1); ctx.lineTo(W, GY + 1); ctx.stroke();
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 9; k++) { const a = P[k], b = P[k + 1];
+      ctx.strokeStyle = css(k % 2 ? '--link-b' : '--link-a'); ctx.lineWidth = 16 * S * 0.86;
+      const ux = (b[0] - a[0]) / 48, uz = (b[1] - a[1]) / 48;
+      ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(X(a[0] + ux * 6), Y(a[1] + uz * 6)); ctx.lineTo(X(b[0] - ux * 6), Y(b[1] - uz * 6)); ctx.stroke();
+      if (k === 8) { const ex = a[0] + ux * 34 - uz * 13, ez = a[1] + uz * 34 + ux * 13;      // eye, on the back
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(X(ex), Y(ez), 7 * S, 0, 7); ctx.fill();
+        ctx.fillStyle = css('--rubber'); ctx.beginPath(); ctx.arc(X(ex + ux * 3), Y(ez + uz * 3), 3.2 * S, 0, 7); ctx.fill(); } }
+    for (let k = 0; k < 10; k++) { ctx.fillStyle = (k === 0 || k === 9) ? css('--latch') : css('--rubber');
+      ctx.beginPath(); ctx.arc(X(P[k][0]), Y(P[k][1]), 10 * S, 0, 7); ctx.fill(); }
+    if (f.l) { ctx.strokeStyle = css('--ok'); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X(P[0][0]), Y(P[0][1]), 15 * S, 0, 7); ctx.stroke(); }
+    const n = phaseAt(i), name = marks[n][1];
+    el('now').textContent = CAPS[name][0]; el('cap').textContent = CAPS[name][1];
+    marks.forEach((m, j) => el('ph' + j).setAttribute('aria-pressed', j === n));
+    el('rt').textContent = (i * dt).toFixed(1); el('ra').textContent = f.a.toFixed(1); el('rl').textContent = f.l ? 'SHUT (wheel)' : 'open';
+    scrub.value = i;
+  }
+  function tick(t){ if (playing) { acc += (t - last) / 1000 * speed; while (acc >= dt) { acc -= dt; i = (i + 1) % N; } draw(); } last = t; requestAnimationFrame(tick); }
+  el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? 'Pause' : 'Play'; last = performance.now(); };
+  el('slow').onclick = () => { speed = speed === 1 ? 0.5 : 1; el('slow').setAttribute('aria-pressed', speed !== 1); };
+  scrub.oninput = () => { i = +scrub.value; acc = 0; draw(); };
+  if (!playing) { el('play').textContent = 'Play'; i = Math.min(N - 1, (marks.find(m => m[1] === 'roll') || [0])[0] + 20); }
+  camX = F[i].p[4][0]; draw(); requestAnimationFrame(t => { last = t; tick(t); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+})();
+</script>

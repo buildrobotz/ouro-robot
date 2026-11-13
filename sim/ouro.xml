@@ -1,0 +1,124 @@
+<mujoco model="ouro">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="5"/>
+  <size memory="20M"/>
+  <visual><global offwidth="1280" offheight="720"/><quality shadowsize="2048"/><headlight ambient="0.45 0.45 0.45" diffuse="0.6 0.6 0.6"/></visual>
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.93 0.91 0.86" rgb2="0.86 0.84 0.78" width="256" height="256"/>
+    <material name="desk" texture="grid" texrepeat="10 10" reflectance="0.05"/>
+    <material name="link" rgba="0.95 0.45 0.15 1"/>
+    <material name="link2" rgba="0.98 0.72 0.2 1"/>
+    <material name="rubber" rgba="0.12 0.12 0.14 1"/>
+    <material name="pcb" rgba="0.1 0.45 0.3 1"/>
+    <material name="eye" rgba="1 1 1 1"/>
+  </asset>
+  <default>
+    <geom condim="3" friction="0.9 0.005 0.0001" solref="0.004 1" solimp="0.95 0.99 0.001"/>
+    <default class="servo"><joint axis="0 -1 0" range="-1.2 1.5" damping="0.012" armature="0.00015" frictionloss="0.006" solreflimit="0.004 1" solimplimit="0.98 0.999 0.0005"/></default>
+    <default class="slop"><joint axis="0 -1 0" range="-0.03491 0.03491" damping="0.0004" armature="4e-6" solreflimit="0.004 1" solimplimit="0.98 0.999 0.0005"/></default>
+    <position kp="1.0" forcerange="-0.15 0.15" ctrlrange="-1.2 1.5"/>
+  </default>
+  <worldbody>
+    <light pos="0.2 -0.6 1.2" dir="-0.1 0.4 -1" diffuse="0.5 0.5 0.5"/>
+    <geom name="floor" type="plane" size="3 3 0.1" material="desk"/>
+    <camera name="side" pos="0.2 -0.75 0.16" xyaxes="1 0 0 0 0.12 1" fovy="38"/>
+    <camera name="hero" pos="0.55 -0.6 0.32" xyaxes="0.75 0.66 0 -0.25 0.28 0.93" fovy="40"/>
+    <body name="s0" pos="0 0 0.0095">
+      <freejoint name="root"/>
+      <site name="latch_tail" pos="0 0 0" size="0.004" rgba="0.8 0.1 0.1 1"/>
+      <site name="latch_tail_l" pos="0 0.03 0" size="0.002"/><site name="latch_tail_r" pos="0 -0.03 0" size="0.002"/>
+      <geom name="k0" type="cylinder" fromto="0 -0.04 0 0 0.04 0" size="0.009" material="rubber" mass="0.004"/>
+      <geom name="box0" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link" mass="0.0330"/>
+      <geom name="k1" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+      <body name="s1" pos="0.048 0 0">
+        <joint name="slop1" class="slop"/>
+        <joint name="j1" class="servo"/>
+        <geom name="box1" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link2" mass="0.0280"/>
+        <geom name="k2" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+        <body name="s2" pos="0.048 0 0">
+          <joint name="slop2" class="slop"/>
+          <joint name="j2" class="servo"/>
+          <geom name="box2" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link" mass="0.0280"/>
+          <geom name="k3" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+          <body name="s3" pos="0.048 0 0">
+            <joint name="slop3" class="slop"/>
+            <joint name="j3" class="servo"/>
+            <geom name="box3" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link2" mass="0.0300"/>
+            <geom name="k4" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+            <geom name="battery" type="box" pos="0.0224 -0.0155 0.0235" size="0.0063 0.023 0.0125" material="pcb" mass="0.034"/>
+            <body name="s4" pos="0.048 0 0">
+              <joint name="slop4" class="slop"/>
+              <joint name="j4" class="servo"/>
+              <geom name="box4" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link" mass="0.0290"/>
+              <geom name="k5" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+              <geom name="esp32" type="box" pos="0.025 0.008 0.0175" size="0.0141 0.0257 0.0045" material="pcb" mass="0.012"/>
+              <site name="imu_mid" pos="0.024 0 0.016" size="0.003"/>
+              <body name="s5" pos="0.048 0 0">
+                <joint name="slop5" class="slop"/>
+                <joint name="j5" class="servo"/>
+                <geom name="box5" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link2" mass="0.0290"/>
+                <geom name="k6" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+                <geom name="power" type="box" pos="0.0292 0.0 0.015" size="0.0102 0.033 0.006" material="pcb" mass="0.016"/>
+                <body name="s6" pos="0.048 0 0">
+                  <joint name="slop6" class="slop"/>
+                  <joint name="j6" class="servo"/>
+                  <geom name="box6" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link" mass="0.0280"/>
+                  <geom name="k7" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+                  <body name="s7" pos="0.048 0 0">
+                    <joint name="slop7" class="slop"/>
+                    <joint name="j7" class="servo"/>
+                    <geom name="box7" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link2" mass="0.0280"/>
+                    <geom name="k8" type="cylinder" fromto="0.048 -0.04 0 0.048 0.04 0" size="0.009" material="rubber" mass="0.003"/>
+                    <body name="s8" pos="0.048 0 0">
+                      <joint name="slop8" class="slop"/>
+                      <joint name="j8" class="servo"/>
+                      <geom name="box8" type="box" pos="0.024 0 0" size="0.018500000000000003 0.038 0.008" material="link" mass="0.0170"/>
+                      <geom name="headimu" type="box" pos="0.03 0.0 0.011" size="0.008 0.01 0.003" material="pcb" mass="0.004"/>
+                      <site name="imu_head" pos="0.024 0 0.014" size="0.003"/>
+                      <site name="latch_head" pos="0.048 0 0" size="0.004" rgba="0.1 0.1 0.8 1"/>
+                      <site name="latch_head_l" pos="0.048 0.03 0" size="0.002"/><site name="latch_head_r" pos="0.048 -0.03 0" size="0.002"/>
+                      <geom name="k9" type="cylinder" fromto="0.048 -0.033 0 0.048 0.033 0" size="0.0055" material="rubber" mass="0.004"/>
+                      <geom type="sphere" pos="0.0336 -0.018 0.015" size="0.008" material="eye" contype="0" conaffinity="0" mass="0.0005"/>
+                      <geom type="sphere" pos="0.038599999999999995 -0.018 0.018000000000000002" size="0.004" material="rubber" contype="0" conaffinity="0" mass="0.0001"/>
+                      <geom type="sphere" pos="0.0336 0.018 0.015" size="0.008" material="eye" contype="0" conaffinity="0" mass="0.0005"/>
+                      <geom type="sphere" pos="0.038599999999999995 0.018 0.018000000000000002" size="0.004" material="rubber" contype="0" conaffinity="0" mass="0.0001"/>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <contact>
+    <exclude body1="s0" body2="s1"/>
+    <exclude body1="s1" body2="s2"/>
+    <exclude body1="s2" body2="s3"/>
+    <exclude body1="s3" body2="s4"/>
+    <exclude body1="s4" body2="s5"/>
+    <exclude body1="s5" body2="s6"/>
+    <exclude body1="s6" body2="s7"/>
+    <exclude body1="s7" body2="s8"/>
+    <exclude body1="s0" body2="s8"/>
+  </contact>
+  <equality>
+    <connect name="latch_l" site1="latch_tail_l" site2="latch_head_l" active="false" solref="0.006 1"/>
+    <connect name="latch_r" site1="latch_tail_r" site2="latch_head_r" active="false" solref="0.006 1"/>
+  </equality>
+  <actuator>
+    <position name="servo1" joint="j1"/>
+    <position name="servo2" joint="j2"/>
+    <position name="servo3" joint="j3"/>
+    <position name="servo4" joint="j4"/>
+    <position name="servo5" joint="j5"/>
+    <position name="servo6" joint="j6"/>
+    <position name="servo7" joint="j7"/>
+    <position name="servo8" joint="j8"/>
+  </actuator>
+  <sensor>
+    <accelerometer name="acc_head" site="imu_head"/><gyro name="gyro_head" site="imu_head"/>
+    <accelerometer name="acc_mid" site="imu_mid"/><gyro name="gyro_mid" site="imu_mid"/>
+  </sensor>
+</mujoco>

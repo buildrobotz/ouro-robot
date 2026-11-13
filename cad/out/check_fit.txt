@@ -1,0 +1,145 @@
+
+(a) Servo in its cradle
+  servo x link 0.00 mm3, tie x link 0.00, tie x servo -0.00, pivot screw x own boss 3.3 (intended: self-tapping thread)
+    +x: 0.30 mm then link
+    -x: 0.30 mm then link
+    +y: 0.30 mm then link+tie
+    -y: 0.30 mm then link
+    +z (out of the back): 0.05 mm then tie
+    -z: 0.30 mm then link
+    rotation +3 deg about the shaft: stopped by ['link']
+    rotation -3 deg about the shaft: stopped by ['link', 'tie']
+  tie slot 3.0 x 2.2 mm for a 2.5 x 1.1 tie; belly recess 0.75 deep (tie stands 0.35 proud of the belly, the treads stand 1.0 proud)
+  -> PASS: interference servo/link 0.0, tie/link 0.0, tie/servo -0.0 mm3; max free play 0.30 mm (all 6 directions stopped); tie slot 3.0x2.2
+
+(a2) Screwdriver paths (3.0 mm shaft) to the horn screw and the pivot screw, joint assembled at 0 deg
+  horn screw: driver 0.00 mm3, head path 0.00;  pivot screw: driver 0.00, head path 0.00
+  -> PASS: horn screw and pivot screw both reachable from outside the cheeks (0.00 mm3)
+
+(b) Joint sweep, plain link pair (link N + servo + O-rings + tie  vs  link N+1 + horn), -69..+88 every 3 deg, then the end stop
+  horn + spline in the horn-arm recess (static): 0.00 mm3
+  j2 (s1-s2): collisions at 0 of 54 angles; first up None, first down None
+  rotor (horn, hub, screw) to link N and its tie: 0.00 mm (rotationally symmetric part)
+  minimum gap link N assembly to link N+1 assembly: -69 deg 0.50 mm, -45 deg 0.50 mm, +0 deg 0.50 mm, +45 deg 0.50 mm, +85 deg 0.36 mm
+  first contact 89.5 deg, between [('link', 'link')] (plastic only: True)
+  -> PASS: first plastic contact 89.5 deg (end stop, toe on cheek; 88.5..90 required), none below: 0 colliding angles -69..+88; min gap 0.36 mm; horn in recess 0.0 mm3
+
+(c) Latch: head against tail with the pins seated, corner angle swept 0..90 deg
+  colliding corner angles: none
+  pin (M3 thread, r 1.5) in seat r 1.75: 0.25 mm radial play; magnet face 2.65 mm from the axis -> 1.15 mm air+plastic when centred, 0.90 mm when pulled home
+  pin x latch wire: centred 0.244 mm3, pulled home 0.488 mm3 (needs > 0 to close the circuit)
+  funnel mouth at x = -2 (block rear face): +-4.5 mm vertical capture
+  -> PASS: no interference 0..90 deg
+
+(d1) Every real joint j1..j8 with the payloads fitted: -69..+88 every 3 deg, then the end stop
+  j1 (s0-s1): collisions at 0 of 54 angles; first up None, first down None
+     end stop j1: first contact 89.5 deg, plastic only: True
+  j2 (s1-s2): collisions at 0 of 54 angles; first up None, first down None
+     end stop j2: first contact 89.5 deg, plastic only: True
+  j3 (s2-s3): collisions at 0 of 54 angles; first up None, first down None
+     end stop j3: first contact 89.5 deg, plastic only: True
+  j4 (s3-s4): collisions at 0 of 54 angles; first up None, first down None
+     end stop j4: first contact 89.5 deg, plastic only: True
+  j5 (s4-s5): collisions at 0 of 54 angles; first up None, first down None
+     end stop j5: first contact 89.5 deg, plastic only: True
+  j6 (s5-s6): collisions at 0 of 54 angles; first up None, first down None
+     end stop j6: first contact 89.5 deg, plastic only: True
+  j7 (s6-s7): collisions at 0 of 54 angles; first up None, first down None
+     end stop j7: first contact 89.5 deg, plastic only: True
+  j8 (s7-s8): collisions at 0 of 54 angles; first up None, first down None
+     end stop j8: first contact 89.5 deg, plastic only: True
+  -> PASS: first contact (all plastic stop): j1 89.5, j2 89.5, j3 89.5, j4 89.5, j5 89.5, j6 89.5, j7 89.5, j8 89.5
+
+(d1b) Electronics margin past +90 deg: first angle at which any board, wire or battery is touched, minus 90
+  j1: electronics first touched at None deg (none up to 150); below the range first contact at -120 deg
+  j2: electronics first touched at None deg (none up to 150); below the range first contact at -120 deg
+  j3: electronics first touched at 97.5 deg (margin +7.5); below the range first contact at -120 deg
+  j4: electronics first touched at 92.5 deg (margin +2.5); below the range first contact at -120 deg
+  j5: electronics first touched at 93.0 deg (margin +3.0); below the range first contact at -120 deg
+  j6: electronics first touched at 92.5 deg (margin +2.5); below the range first contact at -120 deg
+  j7: electronics first touched at None deg (none up to 150); below the range first contact at -120 deg
+  j8: electronics first touched at 144.0 deg (margin +54.0); below the range first contact at -120 deg
+  -> PASS: electronics first contact minus 90: j1 none<150, j2 none<150, j3 +7.5, j4 +2.5, j5 +3.0, j6 +2.5, j7 none<150, j8 +54.0; below -69 nothing before -120
+
+(d2) Closed wheel (all 40 deg) and flat strap, all electronics fitted
+  flat strap: no interference
+  closed wheel: closure error 0.000 mm; no interference
+  s0: top of back at z = 8.0; free height above it in the closed wheel 92.7 mm
+  s1: top of back at z = 8.0; free height above it in the closed wheel 92.7 mm
+  s2: top of back at z = 8.0; free height above it in the closed wheel 25.0 mm
+  s3: top of payload at z = 42.0; free height above it in the closed wheel 77.3 mm
+  s4: top of payload at z = 22.0; free height above it in the closed wheel 96.6 mm
+  s5: top of payload at z = 29.0; free height above it in the closed wheel 90.3 mm
+  s6: top of back at z = 8.0; free height above it in the closed wheel 19.1 mm
+  s7: top of back at z = 8.0; free height above it in the closed wheel 79.7 mm
+  s8: top of payload at z = 12.2; free height above it in the closed wheel 74.7 mm
+  -> PASS: no interference in either pose; free height above the backs (closed) 19..97 mm
+
+(d3) Replay of the simulated act (visual/traj.json: crawl, bite, learned roll, startle), all parts fitted
+  file visual/traj.json modified 2026-11-12 20:57
+  end-stop plastic overlap in the replay (sim stop at 90.0 vs CAD stop at 89.5): max 0.0 mm3, not counted
+  frames checked: 339 of 677; joint range used: [-34, -32, -29, -39, -36, -30, -34, -35] .. [81, 87, 89, 83, 66, 89, 88, 82] deg
+  -> PASS: no interference in any frame
+
+(e) O-ring tread
+  groove core perimeter 60.8 mm vs ring ID circumference 56.5 -> 7.6 % stretch on the ID, 6.7 % on the centreline; cord thins to ~2.42 mm; stands 0.92 mm proud of R8
+  fitting over the R8 flange: 70.3 mm perimeter -> 24 % momentary stretch (NBR breaks at >250 %)
+  groove width 3.5 mm for a 2.5 mm cord (1.0 mm side play)
+  -> PASS: stretch 7.6 % (ID), 6.7 % (centreline); proud 0.92 mm; 24 % to pass the flange
+
+(f) Leaf spring
+  k = 1.241 N.m/rad with the 1.0 mm root fillets (1.155 without), E = 2.1 GPa, b = 66 mm, t = 1.0 mm; target 1.25
+  at 0.15 N.m: deflection 6.9 deg, peak bending stress 13.6 MPa nominal (~16 MPa at the fillet, Kt ~1.15); PETG yield ~50 MPa
+  sensitivity: k scales with t^3 -> 0.9 mm print = 0.90, 1.1 mm = 1.65 N.m/rad
+  pieces after cutting the leaf out (must be 2): link 2, link_s3_battery 2, link_s4_esp32 2, link_s5_power 2, tail 2, head 2
+  flexing every link +-10 deg (1.5 x stall): nothing touches across the gap
+  -> PASS: k 1.24 N.m/rad (target 1.25), 6.9 deg and 13.6 MPa at 0.15 N.m; bridged: no
+
+(g) Printability (belly down on the bed, no supports, limit 50 deg overhang, 0.8 mm features)
+  link            : >50 deg overhang above 2 mm:   0.0 mm2; near-bed (<2 mm up):   0.0 mm2; flat bridges: 2 (widest span 3.0 mm); walls <0.8: 0.15 mm2 worst layer (layer z=-6.3); plates <0.8 thick: 0.0 mm2 (thinnest 99.00)
+      bridge 3.0 x 27.4 mm at z -7.2
+      bridge 0.2 x 3.0 mm at z -7.2
+  link_s3_battery : >50 deg overhang above 2 mm:   0.0 mm2; near-bed (<2 mm up):   0.0 mm2; flat bridges: 4 (widest span 3.0 mm); walls <0.8: 0.15 mm2 worst layer (layer z=-6.3); plates <0.8 thick: 0.0 mm2 (thinnest 99.00)
+      bridge 3.0 x 27.4 mm at z -7.2
+      bridge 1.6 x 3.2 mm at z 10.8
+      bridge 1.6 x 3.2 mm at z 10.8
+  link_s4_esp32   : >50 deg overhang above 2 mm:   0.0 mm2; near-bed (<2 mm up):   0.0 mm2; flat bridges: 3 (widest span 3.0 mm); walls <0.8: 0.15 mm2 worst layer (layer z=-6.3); plates <0.8 thick: 0.0 mm2 (thinnest 99.00)
+      bridge 3.0 x 27.4 mm at z -7.2
+      bridge 2.6 x 3.0 mm at z 8.0
+      bridge 0.2 x 3.0 mm at z -7.2
+  link_s5_power   : >50 deg overhang above 2 mm:   0.0 mm2; near-bed (<2 mm up):   0.0 mm2; flat bridges: 2 (widest span 3.0 mm); walls <0.8: 0.15 mm2 worst layer (layer z=-6.3); plates <0.8 thick: 0.0 mm2 (thinnest 99.00)
+      bridge 3.0 x 27.4 mm at z -7.2
+      bridge 0.2 x 3.0 mm at z -7.2
+      (tail: the 0.2 mm wedges where the latch-wire grooves break into the pin seat are by design and not counted)
+  tail            : >50 deg overhang above 2 mm:   0.0 mm2; near-bed (<2 mm up):   0.0 mm2; flat bridges: 2 (widest span 3.0 mm); walls <0.8: 0.15 mm2 worst layer (layer z=-6.3); plates <0.8 thick: 0.0 mm2 (thinnest 99.00)
+      bridge 3.0 x 27.4 mm at z -7.2
+      bridge 0.2 x 3.0 mm at z -7.2
+  head            : >50 deg overhang above 2 mm:   0.0 mm2; near-bed (<2 mm up):   0.0 mm2; flat bridges: 0 (widest span 0.0 mm); walls <0.8: 0.00 mm2 worst layer (layer z=1.5); plates <0.8 thick: 0.0 mm2 (thinnest 99.00)
+  -> PASS: steep-overhang mm2 / bridges>3.5mm / thin mm2: link 0/0/0.2, link_s3_battery 0/0/0.2, link_s4_esp32 0/0/0.2, link_s5_power 0/0/0.2, tail 0/0/0.2, head 0/0/0.0; accepted, not counted: the lower arcs of the R6.5 groove core and R8 flange (|y| > 33), which the O-ring needs round
+
+(h) Servo lead routing (flat strap, along the back, 15 mm slack per joint crossed)
+  servo in s0:   387 mm to the header on s5 (5 joints)   [  321 mm if the header were on s4]   needs a 20 cm extension (53 mm spare with it)
+  servo in s1:   324 mm to the header on s5 (4 joints)   [  258 mm if the header were on s4]   needs a 15 cm extension (66 mm spare with it)
+  servo in s2:   261 mm to the header on s5 (3 joints)   [  195 mm if the header were on s4]   needs a 15 cm extension (129 mm spare with it)
+  servo in s3:   198 mm to the header on s5 (2 joints)   [  132 mm if the header were on s4]   42 mm spare
+  servo in s4:   135 mm to the header on s5 (1 joints)   [   75 mm if the header were on s4]   105 mm spare
+  servo in s5:    72 mm to the header on s5 (0 joints)   [  138 mm if the header were on s4]   168 mm spare
+  servo in s6:   133 mm to the header on s5 (1 joints)   [  201 mm if the header were on s4]   107 mm spare
+  servo in s7:   196 mm to the header on s5 (2 joints)   [  264 mm if the header were on s4]   44 mm spare
+  -> PASS: extensions: s0 servo 20 cm, s1 servo 15 cm, s2 servo 15 cm (header on the s5 power board); all others reach with >= 42 mm spare
+
+====================================================================================================
+check                      result  numbers
+a servo in cradle          PASS    interference servo/link 0.0, tie/link 0.0, tie/servo -0.0 mm3; max free play 0.30 mm (all 6 directions stopped); tie slot 3.0x2.2
+a2 driver paths            PASS    horn screw and pivot screw both reachable from outside the cheeks (0.00 mm3)
+b joint sweep (plain)      PASS    first plastic contact 89.5 deg (end stop, toe on cheek; 88.5..90 required), none below: 0 colliding angles -69..+88; min gap 0.36 mm; horn in recess 0.0 mm3
+c latch                    PASS    no interference 0..90 deg
+d joints with payloads     PASS    first contact (all plastic stop): j1 89.5, j2 89.5, j3 89.5, j4 89.5, j5 89.5, j6 89.5, j7 89.5, j8 89.5
+d1b electronics margin     PASS    electronics first contact minus 90: j1 none<150, j2 none<150, j3 +7.5, j4 +2.5, j5 +3.0, j6 +2.5, j7 none<150, j8 +54.0; below -69 nothing before -120
+d wheel + strap            PASS    no interference in either pose; free height above the backs (closed) 19..97 mm
+d3 replay of sim act       PASS    no interference in any frame
+e O-ring                   PASS    stretch 7.6 % (ID), 6.7 % (centreline); proud 0.92 mm; 24 % to pass the flange
+f leaf spring              PASS    k 1.24 N.m/rad (target 1.25), 6.9 deg and 13.6 MPa at 0.15 N.m; bridged: no
+g printability             PASS    steep-overhang mm2 / bridges>3.5mm / thin mm2: link 0/0/0.2, link_s3_battery 0/0/0.2, link_s4_esp32 0/0/0.2, link_s5_power 0/0/0.2, tail 0/0/0.2, head 0/0/0.0; accepted, not counted: the lower arcs of the R6.5 groove core and R8 flange (|y| > 33), which the O-ring needs round
+h lead routing             PASS    extensions: s0 servo 20 cm, s1 servo 15 cm, s2 servo 15 cm (header on the s5 power board); all others reach with >= 42 mm spare
+(33 s)

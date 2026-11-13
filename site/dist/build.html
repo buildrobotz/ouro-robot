@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Build plan · Ouro robot</title>
+<meta name="description" content="From ordering parts to a trained robot rolling on your desk: every step in order, how long it takes and what to watch for.">
+<link rel="icon" href="data:,"><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css"></head>
+<body>
+<div class="crumb"><div class="wrap"><a href="https://buildrobotz.com/">BuildRobotz</a><span aria-hidden="true">/</span><a href="https://buildrobotz.com/robots/">Robots</a><span aria-hidden="true">/</span><span>Ouro</span></div></div>
+<header class="top"><div class="wrap"><a class="brand" href="index.html">Ouro<span>.</span></a><nav aria-label="Project pages"><a href="index.html">Overview</a><a href="build.html" aria-current="page">Build plan</a><a href="parts.html">Parts</a><a href="mechanical.html">Mechanical</a><a href="electronics.html">Electronics</a><a href="software.html">Software</a><a href="learning.html">Simulation and RL</a><a href="course.html">Learning path</a><a href="risks.html">Limits</a></nav></div></header>
+<div class="wrap"><main>
+<header><div class="eyebrow">BuildRobotz project · Build plan</div><h1>Build plan</h1><p class="lede">From ordering parts to a trained robot rolling on your desk: every step in order, how long it takes and what to watch for.</p></header>
+<div class="note"><b>Read this first: AI-generated, not yet built</b>This design, its code and these pages were generated with AI, and nobody has built or tested a physical Ouro yet. The simulation, trained policies, firmware and print files are complete, and every performance number here comes from simulation. Treat it as a well-worked starting point: check each step as you go, expect to fix things, and build at your own risk, especially around the LiPo battery. The <a href="risks.html">Limits</a> page lists what to measure and watch.</div><section class="prose wide" style="max-width:none"><p>Plan on about 15 hours of hands-on work plus 9 to 10 hours of unattended printing. At an hour a day that is two to three weeks from ordering parts to a trained robot rolling on your desk: days 1 to 4 waiting for parts while you train in sim, days 5 to 12 building, the rest on the real robot. With parts and prints already on the desk, a long weekend is enough.</p>
+<p>The detailed procedures live on the <a href="mechanical.html">Mechanical</a> page (printing, one joint step by step, O-rings, magnets, where each board mounts) and the <a href="electronics.html">Electronics</a> page (soldering the power board, bring-up, troubleshooting). This table is the order of work.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>#</th>
+<th>Step</th>
+<th>Hands-on</th>
+<th>Waiting</th>
+<th>Watch out for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="#">0</td>
+<td data-label="Step">Order parts (see <a href="parts.html">Parts</a>)</td>
+<td data-label="Hands-on">30 min</td>
+<td data-label="Waiting">2 to 5 days</td>
+<td data-label="Watch out for">Battery: 2S, 450 to 500 mAh, no thicker than 12.5 mm, with a charger. Mini560: the fixed 5 V version. ESP32: classic WROOM-32. Servos: 180°, not 360°.</td>
+</tr>
+<tr>
+<td data-label="#">1</td>
+<td data-label="Step">While you wait: install Python and MuJoCo, run <code>ouro_model.py</code>, <code>test_gaits.py</code>, train <code>roll</code> and <code>bite</code></td>
+<td data-label="Hands-on">1 h</td>
+<td data-label="Waiting">12 min + 5 min of training on 10 cores; 1 to 2 h on a 4-core laptop</td>
+<td data-label="Watch out for">macOS: run the MuJoCo viewer with <code>mjpython</code>.</td>
+</tr>
+<tr>
+<td data-label="#">2</td>
+<td data-label="Step">Measure one MG90S with calipers, edit the numbers at the top of <code>cad/components.py</code> and <code>cad/make_parts.py</code>, run <code>make_parts.py</code> and <code>check_fit.py</code>, print <code>coupon.stl</code>, test the fit</td>
+<td data-label="Hands-on">1 h</td>
+<td data-label="Waiting">25 min print</td>
+<td data-label="Watch out for"><strong>Expect one reprint.</strong> Clone servos vary by ±0.5 mm in spline height and horn shape. The coupon checks the pocket, the horn recess and the pivot screw before you spend 9 hours printing.</td>
+</tr>
+<tr>
+<td data-label="#">3</td>
+<td data-label="Step">Print 4 × <code>link</code>, <code>link_s3_battery</code>, <code>link_s4_esp32</code>, <code>link_s5_power</code>, <code>tail</code>, <code>head</code> in PETG, belly down, no supports</td>
+<td data-label="Hands-on">30 min</td>
+<td data-label="Waiting">8 to 10 h</td>
+<td data-label="Watch out for">First-layer squish stiffens the 1 mm leaf spring (stiffness goes with thickness cubed). Check each spring flexes by hand and looks 1 mm thick.</td>
+</tr>
+<tr>
+<td data-label="#">4</td>
+<td data-label="Step">Flash <code>firmware/servo_center</code> to one ESP32. Plug each servo into it in turn, let it centre at 1500 µs, fit the horn pointing along the link, number the servo</td>
+<td data-label="Hands-on">40 min</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">Arduino-ESP32 core 3.x is required. CH340 boards may need upload speed 460800.</td>
+</tr>
+<tr>
+<td data-label="#">5</td>
+<td data-label="Step">Build one joint completely (Mechanical page, one joint step by step) and fold it by hand: it must swing to −69° and stop on plastic at +90° with the electronics untouched</td>
+<td data-label="Hands-on">30 min</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">Horn fitted one spline tooth off (about 15°). Refit so the link is straight at 1500 µs.</td>
+</tr>
+<tr>
+<td data-label="#">6</td>
+<td data-label="Step">Build the other seven joints, fit the O-rings</td>
+<td data-label="Hands-on">2 h</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">Zip-tie tail left proud of the belly. Cut flush.</td>
+</tr>
+<tr>
+<td data-label="#">7</td>
+<td data-label="Step">Latch: superglue two magnets into the tail (same pole out), drive the two M3 steel screws into the head with a ring lug under each, lay the bare sense wire in its groove across the tail notches</td>
+<td data-label="Hands-on">40 min</td>
+<td data-label="Waiting">10 min glue</td>
+<td data-label="Watch out for">Stainless screws: a magnet will not hold them.</td>
+</tr>
+<tr>
+<td data-label="#">8</td>
+<td data-label="Step">Measure latch pull-off with a kitchen scale: hook the head pins, pull the tail, read the peak. Target 130 to 200 g</td>
+<td data-label="Hands-on">20 min</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">Too strong and the startle cannot open it; too weak and the wheel bursts. Shim the magnets deeper with paper to weaken.</td>
+</tr>
+<tr>
+<td data-label="#">9</td>
+<td data-label="Step">Flash <code>ouro_robot</code> to the robot's ESP32 and <code>ouro_dongle</code> to the other, <strong>before cutting any pins</strong>. Confirm telemetry arrives with nothing connected (<code>play_gait.py PORT wave 2</code>)</td>
+<td data-label="Hands-on">40 min</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">No telemetry: <code>ROBOT_ID</code> or channel differs between the two sketches.</td>
+</tr>
+<tr>
+<td data-label="#">10</td>
+<td data-label="Step">Solder the power board (66 × 20.5 mm layout on the Electronics page). Fit XT30 and the 3 A polyfuse to the battery lead. Follow the bring-up steps: <strong>both rails must read 5.0 V on a meter before anything is connected</strong></td>
+<td data-label="Hands-on">2.5 h</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">A "5 V" Mini560 that is really the adjustable version. A pack with a PH2.0 plug: it must be changed to XT30, one lead at a time.</td>
+</tr>
+<tr>
+<td data-label="#">11</td>
+<td data-label="Step">Cut the ESP32's header pins flush, solder the signal and sensor wires to the stubs, mount battery, ESP32, IMUs and power board (Mechanical page, where each board mounts), route servo leads through the wire channels with a 15 mm slack loop at every joint, fit the three extensions</td>
+<td data-label="Hands-on">2.5 h</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">Wires taped across a leaf spring stop it flexing. Fix them to the solid blocks only. Run <code>firmware/i2c_scan</code>: it must list 0x40, 0x68, 0x69.</td>
+</tr>
+<tr>
+<td data-label="#">12</td>
+<td data-label="Step"><code>calibrate.py</code>, then <code>wave</code>, <code>cobra</code>, <code>bite</code> on the desk</td>
+<td data-label="Hands-on">1 h</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">A joint that curls the wrong way: answer "n" in calibration, do not rewire.</td>
+</tr>
+<tr>
+<td data-label="#">13</td>
+<td data-label="Step"><code>sysid.py</code>; put your delay and slew numbers into <code>_set_params()</code>; <code>python train.py roll --init policies/roll.zip --steps 500000</code></td>
+<td data-label="Hands-on">45 min</td>
+<td data-label="Waiting">3 min</td>
+<td data-label="Watch out for">Round trip over 30 ms: USB-serial driver buffering (FTDI latency timer).</td>
+</tr>
+<tr>
+<td data-label="#">14</td>
+<td data-label="Step"><code>run_policy.py PORT roll --gain 0.4</code>, raise the gain</td>
+<td data-label="Hands-on">1 to 2 h</td>
+<td data-label="Waiting"></td>
+<td data-label="Watch out for">The wheel rocks but does not roll: friction. Clean the O-rings and the desk.</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>You are done when</strong> the robot, starting flat, bites its tail, rolls at least 50 cm and opens on command, three times out of five, on video.</p></section>
+<div class="pager"><a href="index.html">&larr; Overview</a><a href="parts.html">Parts &rarr;</a></div>
+</main></div>
+<footer><div class="wrap">Ouro is an open robot project from <a href="https://buildrobotz.com/">BuildRobotz</a>. The design was generated with AI and has not yet been built or tested on hardware; performance figures are MuJoCo simulation results. Build at your own risk. Code, CAD and firmware: <a href="https://github.com/buildrobotz/ouro-robot">github.com/buildrobotz/ouro-robot</a> (code MIT, docs and CAD CC BY-SA 4.0).<br>
+<a href="https://buildrobotz.com/robots/">More robots to build</a> · <a href="https://buildrobotz.com/">Learn robotics with BuildRobotz</a></div></footer>
+<script>(function(){var a=document.querySelector('nav [aria-current]');if(a&&a.parentNode.scrollWidth>a.parentNode.clientWidth)a.parentNode.scrollLeft=a.offsetLeft-a.parentNode.clientWidth/2+a.offsetWidth/2;
+function op(){var t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var e=t;e;e=e.parentElement)if(e.tagName==='DETAILS')e.open=true;if(t)t.scrollIntoView();}
+addEventListener('hashchange',op);op();})();</script>
+
+</body></html>

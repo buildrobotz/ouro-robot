@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Learning path · Ouro robot</title>
+<meta name="description" content="Thirteen one-hour sessions from the simulator to a filmed robot. One thing to do, one thing to learn and one check in each.">
+<link rel="icon" href="data:,"><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css"></head>
+<body>
+<div class="crumb"><div class="wrap"><a href="https://buildrobotz.com/">BuildRobotz</a><span aria-hidden="true">/</span><a href="https://buildrobotz.com/robots/">Robots</a><span aria-hidden="true">/</span><span>Ouro</span></div></div>
+<header class="top"><div class="wrap"><a class="brand" href="index.html">Ouro<span>.</span></a><nav aria-label="Project pages"><a href="index.html">Overview</a><a href="build.html">Build plan</a><a href="parts.html">Parts</a><a href="mechanical.html">Mechanical</a><a href="electronics.html">Electronics</a><a href="software.html">Software</a><a href="learning.html">Simulation and RL</a><a href="course.html" aria-current="page">Learning path</a><a href="risks.html">Limits</a></nav></div></header>
+<div class="wrap"><main>
+<header><div class="eyebrow">BuildRobotz project · Learning path</div><h1>Learning path</h1><p class="lede">Thirteen one-hour sessions from the simulator to a filmed robot. One thing to do, one thing to learn and one check in each.</p></header>
+<section class="prose wide" style="max-width:none"><p>If you want to learn robotics from this project rather than only build it, work through it in thirteen sessions of about an hour. Each session has one thing to do, one idea to learn and one check that tells you you are done for the day. It works for a self-learner, a club or a class.</p>
+<div class="tablewrap"><table class="stack">
+<thead>
+<tr>
+<th>#</th>
+<th>You do</th>
+<th>You learn</th>
+<th>Done for the day when</th>
+<th>Most likely stuck on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="#">1</td>
+<td data-label="You do">Run <code>ouro_model.py</code>, open <code>ouro.xml</code> in the MuJoCo viewer, drag the links with the mouse</td>
+<td data-label="You learn">Bodies, joints, actuators; what an MJCF file is</td>
+<td data-label="Done for the day when">You can point to joint 5 in the file and in the viewer</td>
+<td data-label="Most likely stuck on">Viewer install</td>
+</tr>
+<tr>
+<td data-label="#">2</td>
+<td data-label="You do">Edit <code>gaits.wave</code> (amplitude, frequency, wavelength), run <code>test_gaits.py</code></td>
+<td data-label="You learn">A gait is a function of time. Open-loop control.</td>
+<td data-label="Done for the day when">The wave moves more than 19 cm in 6 s</td>
+<td data-label="Most likely stuck on">Sign of the travelling wave</td>
+</tr>
+<tr>
+<td data-label="#">3</td>
+<td data-label="You do">Run the scripted <code>bite</code> on 6 random builds, watch it fail on some. Read <code>_set_params</code></td>
+<td data-label="You learn">Why a script that works on the nominal robot fails on a real one. Backlash, offset, latency.</td>
+<td data-label="Done for the day when">You can say which randomised parameter broke seed 1</td>
+<td data-label="Most likely stuck on">Believing the nominal run</td>
+</tr>
+<tr>
+<td data-label="#">4</td>
+<td data-label="You do">Write <code>_frame()</code>: the observation, from sensor data only</td>
+<td data-label="You learn">Observability. What an IMU does and does not tell you.</td>
+<td data-label="Done for the day when">The frame has 22 numbers and none comes from <code>qpos</code></td>
+<td data-label="Most likely stuck on">Wanting to peek at joint angles</td>
+</tr>
+<tr>
+<td data-label="#">5</td>
+<td data-label="You do">Write the <code>roll</code> reward, train for 500k steps</td>
+<td data-label="You learn">Reward design. PPO in one page.</td>
+<td data-label="Done for the day when"><code>dist</code> is rising</td>
+<td data-label="Most likely stuck on">A policy that bursts the wheel for speed</td>
+</tr>
+<tr>
+<td data-label="#">6</td>
+<td data-label="You do">Fix the reward, train to completion, run <code>evaluate.py roll 100</code></td>
+<td data-label="You learn">Evaluating over a distribution, not one run</td>
+<td data-label="Done for the day when">Latched at the end on over 90 % of builds</td>
+<td data-label="Most likely stuck on">Reading one lucky episode as success</td>
+</tr>
+<tr>
+<td data-label="#">7</td>
+<td data-label="You do">Print the coupon, measure a servo, fit it</td>
+<td data-label="You learn">Tolerances. Why you test the risky part first.</td>
+<td data-label="Done for the day when">The servo drops in, the horn seats, the joint swings freely</td>
+<td data-label="Most likely stuck on">Reprint</td>
+</tr>
+<tr>
+<td data-label="#">8</td>
+<td data-label="You do">Assemble the eight joints and the latch, weigh the pull-off</td>
+<td data-label="You learn">Compliance as a design choice; magnets as a tolerance</td>
+<td data-label="Done for the day when">Pull-off between 130 and 200 g</td>
+<td data-label="Most likely stuck on">Horn one tooth off</td>
+</tr>
+<tr>
+<td data-label="#">9</td>
+<td data-label="You do">Solder and wire power and sensors, flash both ESP32s</td>
+<td data-label="You learn">Power rails, brownout, I2C addresses, ESP-NOW</td>
+<td data-label="Done for the day when">Telemetry prints on the computer, both rails at 5.0 V</td>
+<td data-label="Most likely stuck on">Shared-rail resets</td>
+</tr>
+<tr>
+<td data-label="#">10</td>
+<td data-label="You do">Calibrate, play <code>wave</code>, <code>cobra</code>, <code>bite</code> on the real robot</td>
+<td data-label="You learn">The same Python function drives sim and robot</td>
+<td data-label="Done for the day when">The real wave moves; the real bite works sometimes</td>
+<td data-label="Most likely stuck on">Joint direction</td>
+</tr>
+<tr>
+<td data-label="#">11</td>
+<td data-label="You do">Run <code>sysid.py</code>, compare its numbers with the sim ranges</td>
+<td data-label="You learn">System identification. What "the gap" is, in numbers.</td>
+<td data-label="Done for the day when">Your delay and slew sit inside the randomised ranges, or you widen them and retrain</td>
+<td data-label="Most likely stuck on">USB latency timer</td>
+</tr>
+<tr>
+<td data-label="#">12</td>
+<td data-label="You do">Run the trained <code>roll</code> at gain 0.4 and raise it; log a run and plot real IMU traces against sim</td>
+<td data-label="You learn">Sim to real. Reading a log.</td>
+<td data-label="Done for the day when">The wheel completes one full turn</td>
+<td data-label="Most likely stuck on">Friction, magnets too weak</td>
+</tr>
+<tr>
+<td data-label="#">13</td>
+<td data-label="You do">Chain bite → roll → startle, film it</td>
+<td data-label="You learn">Switching policies on a sensor bit</td>
+<td data-label="Done for the day when">A 20 s video of the full act</td>
+<td data-label="Most likely stuck on">Latch bit bouncing</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Done for the project:</strong> the robot, starting flat, bites its tail, rolls at least 50 cm and opens on command, three times out of five, on video.</p></section>
+<div class="pager"><a href="learning.html">&larr; Simulation and RL</a><a href="risks.html">Limits &rarr;</a></div>
+</main></div>
+<footer><div class="wrap">Ouro is an open robot project from <a href="https://buildrobotz.com/">BuildRobotz</a>. The design was generated with AI and has not yet been built or tested on hardware; performance figures are MuJoCo simulation results. Build at your own risk. Code, CAD and firmware: <a href="https://github.com/buildrobotz/ouro-robot">github.com/buildrobotz/ouro-robot</a> (code MIT, docs and CAD CC BY-SA 4.0).<br>
+<a href="https://buildrobotz.com/robots/">More robots to build</a> · <a href="https://buildrobotz.com/">Learn robotics with BuildRobotz</a></div></footer>
+<script>(function(){var a=document.querySelector('nav [aria-current]');if(a&&a.parentNode.scrollWidth>a.parentNode.clientWidth)a.parentNode.scrollLeft=a.offsetLeft-a.parentNode.clientWidth/2+a.offsetWidth/2;
+function op(){var t=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var e=t;e;e=e.parentElement)if(e.tagName==='DETAILS')e.open=true;if(t)t.scrollIntoView();}
+addEventListener('hashchange',op);op();})();</script>
+
+</body></html>
